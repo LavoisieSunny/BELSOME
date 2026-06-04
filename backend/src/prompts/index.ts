@@ -19,7 +19,16 @@ Provide a comprehensive, high-end recommendation in JSON format containing:
 6. "cost": Estimated price range in INR (e.g., "₹800 - ₹1,500").
 7. "stylistMatch": The specialty required (e.g., "Master Hair Sculptor").
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "reply": "...",
+  "hairstyle": "...",
+  "beard": "...",
+  "color": "...",
+  "services": ["...", "..."],
+  "cost": "...",
+  "stylistMatch": "..."
+}
 `;
 
 export const STYLE_DNA_PROMPT = `
@@ -32,6 +41,11 @@ Quiz Inputs:
 - Occasion Type: {occasion}
 - Lifestyle: {lifestyle}
 
+Available Stylists at BELSOME:
+1. Vikram Malhotra (Specialty: Master Hair Sculptor & Fade Specialist, Sassoon Academy graduate. Expert in corporate styling, clean fades, low maintenance)
+2. Priya Rao (Specialty: Celebrity Groomer & Hair Colorist, L'Oreal expert. Expert in modern fashion trends, celebrity/glam volume, bold coloring/bleaching, festive/wedding styling)
+3. Suresh K. (Specialty: Natural Wave Artist & Spa Therapy Specialist. Expert in organic styling, Ayurvedic treatments, natural textures, low maintenance)
+
 Output a JSON object with:
 1. "profileName": One of [Professional, Glam, Trendy, Natural, Celebrity Inspired]
 2. "tagline": A sleek tagline for this style identity.
@@ -40,9 +54,30 @@ Output a JSON object with:
 5. "beardSuggestion": Specific recommendation for facial hair.
 6. "colorSuggestion": Specific recommendation for coloring/treatments.
 7. "matchReasoning": Why this profile fits their answers.
-8. "stylistMatches": Top 3 matching stylist personas (e.g., "Nikhil - Hair Master (98% match)") with reasoning.
+8. "stylistMatches": An array of top 3 matching stylist objects sorted by matchPercentage descending. Each object must have:
+   - "name": Exact stylist name from the Available Stylists list.
+   - "specialty": Specialty of the stylist.
+   - "matchPercentage": An integer between 50 and 99 reflecting how well their specialty aligns with the quiz inputs. Do not hardcode 97/92/86; dynamically score based on the inputs.
+   - "reasoning": A specific sentence explaining why their unique skills match the customer's answers.
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "profileName": "...",
+  "tagline": "...",
+  "description": "...",
+  "hairSuggestion": "...",
+  "beardSuggestion": "...",
+  "colorSuggestion": "...",
+  "matchReasoning": "...",
+  "stylistMatches": [
+    {
+      "name": "...",
+      "specialty": "...",
+      "matchPercentage": 99,
+      "reasoning": "..."
+    }
+  ]
+}
 `;
 
 export const BE_NEXT_HERO_PROMPT = `
@@ -63,7 +98,20 @@ Provide a Celebrity Match Report in JSON containing:
 10. "duration": Estimated salon chair time (e.g., "90 mins").
 11. "cost": Estimated price range in INR.
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "celebrityMatch": "...",
+  "matchConfidence": 95,
+  "hairstyle": "...",
+  "beard": "...",
+  "hairColor": "...",
+  "faceShape": "...",
+  "skinTone": "...",
+  "accessories": ["...", "..."],
+  "services": ["...", "..."],
+  "duration": "...",
+  "cost": "..."
+}
 `;
 
 export const LOOK_FINDER_PROMPT = `
@@ -79,7 +127,16 @@ Output a JSON object with:
 6. "accessories": List of extra accessories (glasses, bracelets, cologne notes).
 7. "styleTips": Two pro tips for carrying this look.
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "outfitType": "...",
+  "shirt": "...",
+  "trousers": "...",
+  "shoes": "...",
+  "watch": "...",
+  "accessories": ["...", "..."],
+  "styleTips": ["...", "..."]
+}
 `;
 
 export const PROCUREMENT_PROMPT = `
@@ -106,7 +163,15 @@ Output a JSON object containing:
 5. "stockRecommendation": Suggested initial order volume.
 6. "explanation": 2-3 sentence reasoning for the score.
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "score": 99,
+  "status": "...",
+  "marginAnalysis": "...",
+  "safetyCert": "...",
+  "stockRecommendation": "...",
+  "explanation": "..."
+}
 `;
 
 export const BEHAVIORAL_EXAM_PROMPT = `
@@ -132,5 +197,18 @@ Output a JSON object with:
 4. "composureRating": "E.g., Excellent, Strained, Calm".
 5. "recommendedCourses": List of 2 training recommendations.
 
-Ensure the response is strictly valid JSON.
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "overallScore": 99,
+  "status": "...",
+  "feedback": {
+    "empathy": "...",
+    "tone": "...",
+    "clarity": "...",
+    "resolution": "...",
+    "upsell": "..."
+  },
+  "composureRating": "...",
+  "recommendedCourses": ["...", "..."]
+}
 `;

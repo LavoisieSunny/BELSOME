@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://localhost:5000/api/ai";
+const BACKEND_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api/ai";
 
 export class ApiService {
   
@@ -46,20 +46,26 @@ export class ApiService {
   }
   
   private static async request(endpoint: string, data: any): Promise<any> {
+    let response;
+    
     try {
-      const response = await fetch(`${BACKEND_URL}/${endpoint}`, {
+      response = await fetch(`${BACKEND_URL}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(30000)
       });
-      if (response.ok) {
-        return await response.json();
-      }
-      throw new Error(`Server returned status ${response.status}`);
-    } catch (error) {
-      console.warn(`Backend connection failed for /${endpoint}, using client-side mock logic.`, error);
-      return this.getClientSideMock(endpoint, data);
+    } catch (networkError) {
+      // Only this catches network errors (backend not running)
+      console.warn("Backend unreachable — start with: cd backend && npm run dev");
+      return this.getClientSideMock(endpoint, data); // mock is fine here
     }
+
+    if (response.ok) return await response.json();
+
+    // Backend is running but returned an error — throw it so UI shows it
+    const errorBody = await response.json();
+    throw new Error(errorBody.error); // bad API key, rate limit, etc shows up now
   }
 
   static async askConcierge(query: string) {
@@ -197,6 +203,11 @@ export class ApiService {
 
       case "style-dna": {
         const pref = data.stylePref.toLowerCase();
+        const length = data.hairLength.toLowerCase();
+        const color = data.colorOpen.toLowerCase();
+        const lifestyle = data.lifestyle.toLowerCase();
+        const occasion = data.occasion.toLowerCase();
+
         let profileName = "Professional";
         let tagline = "Refined, clean-cut, and authoritative.";
         let description = "You prioritize a polished look that commands respect in corporate meetings and formal social circles.";
@@ -215,6 +226,132 @@ export class ApiService {
           description = "You prefer subtle styling that enhances your natural hair texture and skin flow without constant product dependency.";
         }
 
+        // 1. Vikram Malhotra
+        let scoreVikram = 70;
+        let reasonVikram = "Specializes in tailored executive styling and clean fades.";
+        if (pref.includes("corporate") || pref.includes("sleek")) {
+          scoreVikram += 15;
+          reasonVikram = "His expertise in executive styling aligns perfectly with your sleek corporate preference.";
+        } else if (pref.includes("natur") || pref.includes("easy")) {
+          scoreVikram += 10;
+          reasonVikram = "Highly rated for clean, low-maintenance cuts matching your natural styling goals.";
+        } else if (pref.includes("trend") || pref.includes("street")) {
+          scoreVikram += 5;
+          reasonVikram = "His precision work is excellent for structured cuts and clean fades.";
+        }
+        
+        if (length.includes("buzz") || length.includes("fade")) scoreVikram += 10;
+        else if (length.includes("short")) scoreVikram += 8;
+        else if (length.includes("medium")) scoreVikram += 5;
+        else if (length.includes("long")) scoreVikram -= 5;
+
+        if (color.includes("natural") || color.includes("dark")) scoreVikram += 5;
+        else if (color.includes("grey") || color.includes("coverage")) scoreVikram += 5;
+        else if (color.includes("subtle") || color.includes("highlight")) scoreVikram += 2;
+        else if (color.includes("bold") || color.includes("bleach")) scoreVikram -= 5;
+
+        if (lifestyle.includes("desk") || lifestyle.includes("executive")) scoreVikram += 5;
+        if (lifestyle.includes("active") || lifestyle.includes("athlete")) scoreVikram += 5;
+
+        if (occasion.includes("meeting") || occasion.includes("professional")) scoreVikram += 5;
+        if (occasion.includes("daily") || occasion.includes("vibe")) scoreVikram += 3;
+
+        scoreVikram = Math.max(50, Math.min(99, scoreVikram));
+
+        // 2. Priya Rao
+        let scorePriya = 70;
+        let reasonPriya = "Acclaimed expert in modern fashion trends and volume textures.";
+        if (pref.includes("glam") || pref.includes("celeb")) {
+          scorePriya += 15;
+          reasonPriya = "Her background in celebrity grooming perfectly matches your high-glam aspirations.";
+        } else if (pref.includes("trend") || pref.includes("street")) {
+          scorePriya += 12;
+          reasonPriya = "Her expertise in runway styling matches your bold, trendsetting preference.";
+        } else if (pref.includes("corporate") || pref.includes("sleek")) {
+          scorePriya += 5;
+          reasonPriya = "Great at creating clean, dapper looks for corporate events and professional shoots.";
+        } else if (pref.includes("natur") || pref.includes("easy")) {
+          scorePriya -= 5;
+          reasonPriya = "Provides modern cuts, though she typically focuses on high-impact styles.";
+        }
+
+        if (length.includes("medium")) scorePriya += 8;
+        else if (length.includes("long")) scorePriya += 8;
+        else if (length.includes("short")) scorePriya += 5;
+
+        if (color.includes("bold") || color.includes("bleach")) {
+          scorePriya += 10;
+          reasonPriya = "As a certified L'Oreal Color Expert, she is the ultimate choice for your bold color choice.";
+        } else if (color.includes("subtle") || color.includes("highlight")) {
+          scorePriya += 8;
+          reasonPriya = "Specializes in tailored highlights and balayage matching your style preferences.";
+        } else if (color.includes("natural") || color.includes("dark")) scorePriya -= 5;
+
+        if (lifestyle.includes("social") || lifestyle.includes("pr")) scorePriya += 5;
+        if (lifestyle.includes("creative") || lifestyle.includes("freelance")) scorePriya += 5;
+
+        if (occasion.includes("wedding") || occasion.includes("festive")) scorePriya += 8;
+        if (occasion.includes("night") || occasion.includes("club")) scorePriya += 6;
+
+        scorePriya = Math.max(50, Math.min(99, scorePriya));
+
+        // 3. Suresh K.
+        let scoreSuresh = 65;
+        let reasonSuresh = "Top rated for organic styling and low-maintenance textures.";
+        if (pref.includes("natur") || pref.includes("easy")) {
+          scoreSuresh += 18;
+          reasonSuresh = "His organic approach and Ayurvedic treatments align with your natural grooming preferences.";
+        } else if (pref.includes("corporate") || pref.includes("sleek")) {
+          scoreSuresh += 5;
+          reasonSuresh = "Excellent for neat, classic shapes and soothing executive treatments.";
+        } else if (pref.includes("trend") || pref.includes("street")) {
+          scoreSuresh -= 5;
+          reasonSuresh = "Prefers organic flow, but can deliver clean textures for casual daily wear.";
+        } else if (pref.includes("glam") || pref.includes("celeb")) {
+          scoreSuresh -= 10;
+          reasonSuresh = "Best suited for natural, effortless styling rather than high-glam structures.";
+        }
+
+        if (length.includes("long")) scoreSuresh += 10;
+        else if (length.includes("medium")) scoreSuresh += 6;
+        else if (length.includes("short")) scoreSuresh += 4;
+        else if (length.includes("buzz") || length.includes("fade")) scoreSuresh -= 2;
+
+        if (color.includes("grey") || color.includes("coverage")) {
+          scoreSuresh += 10;
+          reasonSuresh = "His gentle organic grey coverage treatments are ideal for hair health.";
+        } else if (color.includes("natural") || color.includes("dark")) {
+          scoreSuresh += 8;
+          reasonSuresh = "Strong proponent of chemical-free care to keep natural hair dark and strong.";
+        } else if (color.includes("subtle") || color.includes("highlight")) {
+          scoreSuresh += 2;
+        } else if (color.includes("bold") || color.includes("bleach")) {
+          scoreSuresh -= 10;
+        }
+
+        if (lifestyle.includes("creative") || lifestyle.includes("freelance")) scoreSuresh += 5;
+        if (lifestyle.includes("active") || lifestyle.includes("athlete")) scoreSuresh += 5;
+        if (lifestyle.includes("desk") || lifestyle.includes("executive")) scoreSuresh += 2;
+
+        if (occasion.includes("daily") || occasion.includes("vibe")) scoreSuresh += 8;
+        if (occasion.includes("meeting") || occasion.includes("professional")) scoreSuresh += 4;
+
+        scoreSuresh = Math.max(50, Math.min(99, scoreSuresh));
+
+        // Resolve ties so it looks neat
+        if (scoreVikram === scorePriya) scoreVikram += 1;
+        if (scoreVikram === scoreSuresh) scoreVikram += 1;
+        if (scorePriya === scoreSuresh) scorePriya += 1;
+
+        const matches = [
+          { name: "Vikram Malhotra", specialty: "Master Hair Sculptor & Fade Specialist", matchPercentage: scoreVikram, reasoning: reasonVikram },
+          { name: "Priya Rao", specialty: "Celebrity Groomer & Hair Colorist", matchPercentage: scorePriya, reasoning: reasonPriya },
+          { name: "Suresh K.", specialty: "Natural Wave Artist & Spa Therapy Specialist", matchPercentage: scoreSuresh, reasoning: reasonSuresh }
+        ];
+
+        // Sort by matchPercentage descending
+        matches.sort((a, b) => b.matchPercentage - a.matchPercentage);
+
         return {
           profileName,
           tagline,
@@ -223,11 +360,7 @@ export class ApiService {
           beardSuggestion: "Meticulously Groomed Medium Stubble",
           colorSuggestion: "Subtle Sun-Kissed Ash Brown highlights to add depth",
           matchReasoning: `Your preference for ${data.stylePref} styling and a ${data.lifestyle} lifestyle aligns perfectly with a ${profileName} profile. This balance offers low maintenance during weekdays while remaining striking during ${data.occasion} occasions.`,
-          stylistMatches: [
-            { name: "Vikram Malhotra", specialty: "Master Hair Sculptor", matchPercentage: 97, reasoning: "Specializes in tailored executive styling and sharp fades." },
-            { name: "Priya Rao", specialty: "Celebrity Groomer", matchPercentage: 92, reasoning: "Acclaimed expert in modern fashion trends and volume textures." },
-            { name: "Suresh K.", specialty: "Natural Wave Artist", matchPercentage: 86, reasoning: "Top rated for organic styling and low-maintenance textures." }
-          ]
+          stylistMatches: matches
         };
       }
 

@@ -2,9 +2,140 @@ import React, { useState } from "react";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
 import { 
-  Sparkles, Calendar, Clock, Heart, Award, Star, ListFilter, Play, Upload, Download, Tag, 
-  MapPin, ShoppingBag, Timer, CheckCircle, RefreshCcw, ShieldCheck, Scissors, Sliders
+  MapPin, ShoppingBag, Timer, CheckCircle, RefreshCcw, ShieldCheck, Scissors, Sliders,
+  Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download
 } from "lucide-react";
+
+interface StyleItem {
+  id: string;
+  name: string;
+  base: string;
+  category: string;
+  scale?: number;
+  yOffset?: number;
+  tip?: string;
+}
+
+const HAIRSTYLES_LIST: StyleItem[] = [
+  { id: "clean-hair", name: "Clean / Shaved", base: "none", category: "Classic", tip: "A neat clean look highlighting your face shape." },
+  // Fades
+  { id: "buzz-cut", name: "Buzz Cut", base: "buzz", category: "Fades", scale: 0.98, yOffset: 2, tip: "Ultra-short, low-maintenance cut, ideal for active lifestyles." },
+  { id: "crew-cut", name: "Crew Cut", base: "buzz", category: "Fades", scale: 1.0, yOffset: 1, tip: "Classic military-inspired style with slightly more length on top." },
+  { id: "high-tight", name: "High & Tight", base: "buzz", category: "Fades", scale: 0.97, yOffset: 3, tip: "Clean look with shaved sides and a tiny patch on top." },
+  { id: "taper-fade", name: "Classic Taper Fade", base: "buzz", category: "Fades", scale: 1.0, yOffset: 0, tip: "Gradient fade from long at the temples to short at the base." },
+  { id: "drop-fade", name: "Drop Fade", base: "buzz", category: "Fades", scale: 0.99, yOffset: 2, tip: "The fade line falls behind the ear, creating a clean curved look." },
+  { id: "skin-fade", name: "High Skin Fade", base: "buzz", category: "Fades", scale: 0.96, yOffset: 4, tip: "High contrast cut tapering down to bare skin." },
+  { id: "temp-fade", name: "Temple Fade", base: "buzz", category: "Fades", scale: 0.99, yOffset: 1, tip: "Sleek fade focused strictly around the temples." },
+  { id: "burst-fade", name: "Burst Fade", base: "buzz", category: "Fades", scale: 1.0, yOffset: 2, tip: "Circular fade bursting around the ear." },
+  { id: "bald-fade", name: "Bald Fade", base: "buzz", category: "Fades", scale: 0.95, yOffset: 3, tip: "High fade blending seamlessly into the skin." },
+  { id: "flat-top", name: "Flat Top", base: "buzz", category: "Fades", scale: 1.02, yOffset: -2, tip: "Structured high-top with a flat upper level." },
+  // Classics
+  { id: "classic-pomp", name: "Classic Pompadour", base: "pompadour", category: "Classic", scale: 1.0, yOffset: 0, tip: "High-volume swept back look, styled with high-shine pomade." },
+  { id: "slick-back", name: "Slicked Back", base: "undercut", category: "Classic", scale: 0.98, yOffset: 2, tip: "Timeless combed-back style offering an executive look." },
+  { id: "comb-over", name: "Comb Over", base: "sidepart", category: "Classic", scale: 1.0, yOffset: 1, tip: "Classic gentleman style combed over to one side." },
+  { id: "executive-scissor", name: "Executive Scissor Cut", base: "sidepart", category: "Classic", scale: 1.02, yOffset: -1, tip: "Natural scissor-cut layers tailored for boardroom meetings." },
+  { id: "ivy-league", name: "Ivy League", base: "sidepart", category: "Classic", scale: 0.99, yOffset: 2, tip: "Clean parted cut, popular in Ivy League legacy catalogs." },
+  { id: "caesar-cut", name: "Caesar Cut", base: "buzz", category: "Classic", scale: 0.98, yOffset: 3, tip: "Short horizontally cut fringe named after Julius Caesar." },
+  { id: "french-crop", name: "French Crop", base: "buzz", category: "Classic", scale: 1.0, yOffset: 2, tip: "Short cut with a prominent blunt cropped fringe." },
+  { id: "regulation-cut", name: "Regulation Cut", base: "sidepart", category: "Classic", scale: 0.98, yOffset: 1, tip: "Strict military crop with a clean side part." },
+  { id: "butch-cut", name: "Butch Cut", base: "buzz", category: "Classic", scale: 0.96, yOffset: 3, tip: "Short uniform cut all around, slightly longer than a buzz." },
+  { id: "burr-cut", name: "Burr Cut", base: "buzz", category: "Classic", scale: 0.95, yOffset: 4, tip: "Almost completely shaved look using a #1 clipper guard." },
+  // Quiffs & Pomps
+  { id: "high-fade-quiff", name: "High Fade Quiff", base: "quiff", category: "Volume", scale: 1.03, yOffset: -1, tip: "Modern quiff with shaved sides for high visual contrast." },
+  { id: "textured-quiff", name: "Textured Quiff", base: "quiff", category: "Volume", scale: 1.0, yOffset: 0, tip: "Messy, piecey quiff with lots of movement and matte finish." },
+  { id: "messy-fringe", name: "Messy Fringe", base: "quiff", category: "Volume", scale: 0.98, yOffset: 3, tip: "Casual styling with volume swept forward over the forehead." },
+  { id: "modern-shag", name: "Modern Shag", base: "quiff", category: "Volume", scale: 1.05, yOffset: -3, tip: "Retro layered cut with messy textured volume." },
+  { id: "wolf-cut", name: "Wolf Cut", base: "quiff", category: "Volume", scale: 1.04, yOffset: -2, tip: "Trendy hybrid of a shag and a subtle mullet." },
+  { id: "ducktail-pomp", name: "Ducktail Pompadour", base: "pompadour", category: "Volume", scale: 1.02, yOffset: -1, tip: "Classic 1950s look converging into a point at the back." },
+  { id: "faux-hawk", name: "Faux Hawk", base: "quiff", category: "Volume", scale: 1.02, yOffset: -2, tip: "Sides are short while the center points upwards." },
+  { id: "mohawk-classic", name: "Mohawk Classic", base: "quiff", category: "Volume", scale: 1.05, yOffset: -4, tip: "Striking strip of vertical hair running down the center." },
+  { id: "liberty-spikes", name: "Liberty Spikes", base: "quiff", category: "Volume", scale: 1.08, yOffset: -5, tip: "Punk-inspired long thick spikes pointing outwards." },
+  { id: "octopus-cut", name: "Octopus Cut", base: "quiff", category: "Volume", scale: 1.05, yOffset: -2, tip: "Shaggy layers resembling octopus tentacles." },
+  // Undercuts
+  { id: "textured-undercut", name: "Textured Undercut", base: "undercut", category: "Undercuts", scale: 1.0, yOffset: 0, tip: "Short sides with highly textured messy layers on top." },
+  { id: "discon-undercut", name: "Disconnected Undercut", base: "undercut", category: "Undercuts", scale: 1.02, yOffset: -1, tip: "Sharp division line between shaved sides and long top hair." },
+  { id: "slick-undercut", name: "Slicked Back Undercut", base: "undercut", category: "Undercuts", scale: 0.99, yOffset: 1, tip: "Slick combed-back hair with disconnected buzzed sides." },
+  { id: "hard-part", name: "Hard Part Undercut", base: "sidepart", category: "Undercuts", scale: 1.0, yOffset: 1, tip: "A razor-cut side line highlighting the hair division." },
+  { id: "curtains-eboy", name: "Curtains / E-Boy", base: "sidepart", category: "Undercuts", scale: 0.98, yOffset: 3, tip: "90s middle part framing both sides of the face." },
+  { id: "side-swept-undercut", name: "Side Swept Undercut", base: "sidepart", category: "Undercuts", scale: 1.01, yOffset: 0, tip: "Undercut styling with long hair swept to one side." },
+  { id: "comb-over-fade", name: "Comb Over Fade", base: "sidepart", category: "Undercuts", scale: 1.0, yOffset: 1, tip: "Classic combo of a taper fade and side-swept comb over." },
+  { id: "textured-crop-fade", name: "Textured Crop Fade", base: "buzz", category: "Undercuts", scale: 1.0, yOffset: 2, tip: "Textured crop top with high skin faded sides." },
+  // Long & Flows
+  { id: "long-waves", name: "Long Waves", base: "long", category: "Long", scale: 1.0, yOffset: 0, tip: "Free-flowing wavy locks offering an effortless look." },
+  { id: "surf-flow", name: "Surf Flow", base: "long", category: "Long", scale: 1.02, yOffset: -1, tip: "Medium length messy waves, popular in coastal styling." },
+  { id: "man-bun", name: "Man Bun", base: "long", category: "Long", scale: 0.95, yOffset: 3, tip: "Long hair tied into a neat round bun at the crown." },
+  { id: "top-knot", name: "Top Knot", base: "long", category: "Long", scale: 0.94, yOffset: 4, tip: "Undercut sides with long hair tied into a knot on top." },
+  { id: "skater-flow", name: "Skater Flow", base: "long", category: "Long", scale: 1.03, yOffset: -2, tip: "Casual chin-length layers falling naturally." },
+  { id: "pageboy-cut", name: "Pageboy Cut", base: "long", category: "Long", scale: 1.04, yOffset: -1, tip: "Retro long bob styling curling slightly inward." },
+  { id: "mullet-classic", name: "Mullet Classic", base: "long", category: "Long", scale: 1.05, yOffset: -2, tip: "Business in the front, styling party in the back." },
+  { id: "dreadlocks", name: "Dreadlocks", base: "long", category: "Long", scale: 1.02, yOffset: -1, tip: "Sculpted locks of protective rope-like hair layers." },
+  // Curly & Textures
+  { id: "curly-crop", name: "Curly Crop with Drop Fade", base: "curly", category: "Curly", scale: 1.0, yOffset: 0, tip: "Curly texture on top with clean skin-faded sides." },
+  { id: "wavy-taper", name: "Wavy Taper Fade", base: "curly", category: "Curly", scale: 1.02, yOffset: -1, tip: "Natural waves styled with a clean temple taper." },
+  { id: "afro-classic", name: "Afro Classic", base: "curly", category: "Curly", scale: 1.06, yOffset: -3, tip: "High-volume spherical cloud of natural curls." },
+  { id: "twist-out", name: "Twist Out", base: "curly", category: "Curly", scale: 1.03, yOffset: -1, tip: "Highly defined curl spirals created by unraveling twists." },
+  { id: "cornrows-braids", name: "Cornrows Braids", base: "curly", category: "Curly", scale: 0.97, yOffset: 2, tip: "Sleek protective braids running flat against the scalp." },
+  { id: "braided-rows", name: "Braided Rows", base: "curly", category: "Curly", scale: 0.99, yOffset: 1, tip: "Individual braided strands extending backwards." }
+];
+
+const BEARDS_LIST: StyleItem[] = [
+  { id: "clean-shave", name: "Clean Shaven", base: "none", category: "Shaved", tip: "A perfectly smooth skin finish." },
+  // Stubbles
+  { id: "light-stubble", name: "Light 3-Day Shadow", base: "stubble", category: "Stubble", tip: "Subtle stubble outlining the jawline." },
+  { id: "medium-stubble", name: "Medium Stubble", base: "stubble", category: "Stubble", tip: "Well-defined short stubble, very popular and easy." },
+  { id: "heavy-stubble", name: "Heavy Stubble", base: "stubble", category: "Stubble", tip: "Thick dense stubble offering a rugged look." },
+  { id: "rap-industry", name: "Rap Industry Stubble", base: "stubble", category: "Stubble", tip: "Meticulously lined thin stubble along the jaw edge." },
+  { id: "scruffy-beard", name: "Scruffy Beard", base: "stubble", category: "Stubble", tip: "Slightly unkempt but styled medium-short beard." },
+  // Full Beards
+  { id: "boxed-beard", name: "Short Boxed Beard", base: "full", category: "Full Beard", tip: "Groomed corporate full beard with neat cheek lines." },
+  { id: "classic-full", name: "Classic Full Beard", base: "full", category: "Full Beard", tip: "Standard full beard with natural growing lines." },
+  { id: "garibaldi", name: "Garibaldi Beard", base: "full", category: "Full Beard", tip: "Wide, rounded full beard up to 20cm in length." },
+  { id: "verdi", name: "Verdi Beard", base: "full", category: "Full Beard", tip: "Short full beard styled with a handlebar mustache." },
+  { id: "ducktail-beard", name: "Ducktail Beard", base: "full", category: "Full Beard", tip: "Full beard trimmed to resemble a pointed ducktail." },
+  { id: "bandholz", name: "Bandholz Beard", base: "full", category: "Full Beard", tip: "Massive, long full beard and mustache left to grow naturally." },
+  { id: "hipster-beard", name: "Hipster Beard", base: "full", category: "Full Beard", tip: "Long, dense beard paired with styled mustache waves." },
+  { id: "lumberjack", name: "Lumberjack Beard", base: "full", category: "Full Beard", tip: "Rugged, thick beard projecting a strong profile." },
+  { id: "corporate-beard", name: "Corporate Beard", base: "full", category: "Full Beard", tip: "Trimmed to a uniform length of 1/2 inch for office spaces." },
+  // Goatees & Anchors
+  { id: "circle-beard", name: "Circle Beard (Goatee)", base: "goatee", category: "Goatee", tip: "Mustache and chin beard connected in a circular loop." },
+  { id: "anchor-beard", name: "Anchor Beard", base: "goatee", category: "Goatee", tip: "Pointed beard tracking the jawline, paired with a mustache." },
+  { id: "balbo", name: "Balbo Beard", base: "goatee", category: "Goatee", tip: "Three-section beard: mustache, chin tuft, and separate jaw wings." },
+  { id: "van-dyke", name: "Van Dyke Beard", base: "goatee", category: "Goatee", tip: "Floating mustache paired with a separate pointed chin goatee." },
+  { id: "extended-goatee", name: "Extended Goatee", base: "goatee", category: "Goatee", tip: "Goatee extending backwards along the jawline." },
+  { id: "ducktail-goatee", name: "Ducktail Goatee", base: "goatee", category: "Goatee", tip: "Pointed goatee styled without cheek hair." },
+  { id: "petite-goatee", name: "Petite Goatee", base: "goatee", category: "Goatee", tip: "Small patch of beard centered on the chin." },
+  { id: "sparrow-beard", name: "Sparrow Beard", base: "goatee", category: "Goatee", tip: "Braided chin goatee inspired by Jack Sparrow." },
+  { id: "winnfield", name: "Winnfield Goatee", base: "goatee", category: "Goatee", tip: "Thin mustache curving down past the mouth to a chin patch." },
+  // Mutton Chops
+  { id: "mutton-chops", name: "Mutton Chops", base: "muttonchops", category: "Chops", tip: "Thick sideburns extending down to the corners of the mouth." },
+  { id: "friendly-chops", name: "Friendly Mutton Chops", base: "muttonchops", category: "Chops", tip: "Mutton chops connected by a mustache." },
+  { id: "hulihee", name: "Hulihee Beard", base: "muttonchops", category: "Chops", tip: "Flared, long friendly mutton chops styled outwards." },
+  { id: "sideburns-goatee", name: "Goatee and Sideburns", base: "goatee", category: "Chops", tip: "Thick sideburns paired with a separate chin goatee." },
+  // Mustaches
+  { id: "handlebar", name: "Handlebar Mustache", base: "mustache", category: "Mustache", tip: "Mustache with upward curved tips styled with wax." },
+  { id: "fu-manchu", name: "Fu Manchu Mustache", base: "mustache", category: "Mustache", tip: "Thin mustache growing downwards past the chin." },
+  { id: "horseshoe", name: "Horseshoe Mustache", base: "mustache", category: "Mustache", tip: "Mustache resembling a horseshoe, extending down to the jaw." },
+  { id: "chevron", name: "Chevron Mustache", base: "mustache", category: "Mustache", tip: "Thick mustache covering the entire upper lip." },
+  { id: "pencil-stache", name: "Pencil Mustache", base: "mustache", category: "Mustache", tip: "Thin, closely clipped line of hair above the upper lip." },
+  { id: "walrus-stache", name: "Walrus Mustache", base: "mustache", category: "Mustache", tip: "Thick bushy mustache hanging over the bottom lip." },
+  { id: "english-stache", name: "English Mustache", base: "mustache", category: "Mustache", tip: "Long mustache pulled straight out to the sides." },
+  { id: "dali-stache", name: "Dali Mustache", base: "mustache", category: "Mustache", tip: "Narrow mustache with sharp points curved straight up." },
+  { id: "brush-stache", name: "Painter's Brush", base: "mustache", category: "Mustache", tip: "Thick mustache with rounded outer corners." },
+  { id: "lampshade", name: "Lampshade Mustache", base: "mustache", category: "Mustache", tip: "Mustache cropped into a trapezoidal shape." },
+  { id: "zappa", name: "Zappa Mustache", base: "mustache", category: "Mustache", tip: "Thick mustache paired with a distinct wide soul patch." },
+  { id: "toothbrush", name: "Toothbrush Mustache", base: "mustache", category: "Mustache", tip: "Small centered patch of mustache, popular in early 1900s." },
+  // Others / Classic Combs
+  { id: "chin-curtain", name: "Chin Curtain", base: "full", category: "Other", tip: "Beard growing along the jawline, completely without mustache." },
+  { id: "chin-strap", name: "Chin Strap Beard", base: "stubble", category: "Other", tip: "Thin line of beard running along the edge of the jaw." },
+  { id: "soul-patch", name: "Soul Patch", base: "goatee", category: "Other", tip: "Small patch of hair centered below the lower lip." },
+  { id: "goat-patch", name: "Goat Patch", base: "goatee", category: "Other", tip: "Elongated strip of chin hair." },
+  { id: "klingon-beard", name: "Klingon Beard", base: "full", category: "Other", tip: "Downward angled mustache connecting to a chin strap." },
+  { id: "old-dutch", name: "Old Dutch Beard", base: "full", category: "Other", tip: "Large full flared beard styled without a mustache." },
+  { id: "neck-beard", name: "Neck Beard", base: "full", category: "Other", tip: "Beard grown exclusively below the jawline on the neck." },
+  { id: "imperial-combo", name: "Imperial Beard & Mustache", base: "full", category: "Other", tip: "Full beard combined with an imperial waxed mustache." },
+  { id: "anchor-combo", name: "Anchor & Mustache Combo", base: "goatee", category: "Other", tip: "Anchor beard paired with a classic pencil mustache." },
+  { id: "french-fork", name: "French Fork Beard", base: "full", category: "Other", tip: "Full beard split down the center into two sections." }
+];
 
 const getCelebrityImage = (name: string, inputLink?: string) => {
   if (inputLink && (inputLink.startsWith("http") || inputLink.startsWith("data:"))) {
@@ -39,12 +170,66 @@ export default function CustomerDashboard() {
   // Interactive Styling Canvas State
   const [canvasFaceShape, setCanvasFaceShape] = useState<"oval" | "round" | "square" | "heart">("oval");
   const [canvasSkinTone, setCanvasSkinTone] = useState("#F5C29A");
-  const [canvasHair, setCanvasHair] = useState<"none" | "pompadour" | "quiff" | "undercut" | "sidepart">("pompadour");
+  const [selectedHairId, setSelectedHairId] = useState<string>("classic-pomp");
+  const [selectedBeardId, setSelectedBeardId] = useState<string>("medium-stubble");
   const [canvasHairColor, setCanvasHairColor] = useState("#1A1A1A");
   const [canvasHairScale, setCanvasHairScale] = useState(1.0);
   const [canvasHairY, setCanvasHairY] = useState(0);
-  const [canvasBeard, setCanvasBeard] = useState<"none" | "stubble" | "full" | "goatee">("stubble");
   const [canvasAccessory, setCanvasAccessory] = useState<"none" | "glasses" | "sunglasses" | "earrings" | "turban">("none");
+
+  // Uploaded photo scanner state
+  const [uploadedImageSrc, setUploadedImageSrc] = useState<string | null>(null);
+
+  // Search & Filter state for 50+ styles
+  const [hairSearch, setHairSearch] = useState("");
+  const [hairFilterCat, setHairFilterCat] = useState("All");
+  const [beardSearch, setBeardSearch] = useState("");
+  const [beardFilterCat, setBeardFilterCat] = useState("All");
+
+  // Derive canvasHair and canvasBeard dynamically
+  const activeHairItem = HAIRSTYLES_LIST.find(h => h.id === selectedHairId) || HAIRSTYLES_LIST[0];
+  const activeBeardItem = BEARDS_LIST.find(b => b.id === selectedBeardId) || BEARDS_LIST[0];
+
+  const canvasHair = activeHairItem.base;
+  const canvasBeard = activeBeardItem.base;
+
+  const handleHairSelect = (hairId: string) => {
+    const hair = HAIRSTYLES_LIST.find(h => h.id === hairId);
+    if (!hair) return;
+    setSelectedHairId(hairId);
+    setCanvasHairScale(hair.scale ?? 1.0);
+    setCanvasHairY(hair.yOffset ?? 0);
+  };
+
+  const handleBeardSelect = (beardId: string) => {
+    const beard = BEARDS_LIST.find(b => b.id === beardId);
+    if (!beard) return;
+    setSelectedBeardId(beardId);
+  };
+
+  const handleTryStyleMatch = (hairName: string, beardName: string) => {
+    const hn = hairName.toLowerCase();
+    let hairId = "clean-hair";
+    if (hn.includes("quiff")) hairId = "textured-quiff";
+    else if (hn.includes("undercut")) hairId = "textured-undercut";
+    else if (hn.includes("part") || hn.includes("comb")) hairId = "comb-over";
+    else if (hn.includes("fade") || hn.includes("taper")) hairId = "taper-fade";
+    else if (hn.includes("crop") || hn.includes("buzz")) hairId = "buzz-cut";
+    else if (hn.includes("flow") || hn.includes("wave")) hairId = "long-waves";
+    else if (hn.includes("pompadour") || hn.includes("pomp")) hairId = "classic-pomp";
+    else if (hn.includes("curly") || hn.includes("afro")) hairId = "curly-crop";
+    
+    const bn = beardName.toLowerCase();
+    let beardId = "clean-shave";
+    if (bn.includes("stubble") || bn.includes("shadow")) beardId = "medium-stubble";
+    else if (bn.includes("full") || bn.includes("lumberjack")) beardId = "classic-full";
+    else if (bn.includes("goatee") || bn.includes("anchor") || bn.includes("valbo")) beardId = "circle-beard";
+    else if (bn.includes("mustache") || bn.includes("stache") || bn.includes("handlebar")) beardId = "chevron";
+    else if (bn.includes("chop") || bn.includes("mutton")) beardId = "friendly-chops";
+    
+    handleHairSelect(hairId);
+    handleBeardSelect(beardId);
+  };
 
   const canvasHairFill = (color: string) => {
     if (color === "#7C3AED") return "url(#purpleHairGrad)";
@@ -80,6 +265,14 @@ export default function CustomerDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setUploadedImageSrc(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+
     setAvatarScanning(true);
     setScanMessage("Uploading portrait photo...");
 
@@ -88,7 +281,6 @@ export default function CustomerDashboard() {
       setTimeout(() => {
         setScanMessage("Calculating chin width aspect ratio...");
         setTimeout(() => {
-          // Pick a random shape or match keywords if file name contains them
           const name = file.name.toLowerCase();
           let selected: "oval" | "round" | "square" | "heart" = "oval";
           if (name.includes("round")) selected = "round";
@@ -98,11 +290,62 @@ export default function CustomerDashboard() {
             const shapes: ("oval" | "round" | "square" | "heart")[] = ["round", "square", "heart", "oval"];
             selected = shapes[Math.floor(Math.random() * shapes.length)];
           }
-          
           setCanvasFaceShape(selected);
+
+          if (name.includes("fair")) setCanvasSkinTone("#FCD5B5");
+          else if (name.includes("tan") || name.includes("brown")) setCanvasSkinTone("#E8B085");
+          else if (name.includes("deep") || name.includes("dark")) setCanvasSkinTone("#D09060");
+          else if (name.includes("medium")) setCanvasSkinTone("#F5C29A");
+
+          let matchedHairId = "classic-pomp";
+          if (name.includes("buzz") || name.includes("crew") || name.includes("flat") || name.includes("crop")) {
+            matchedHairId = "buzz-cut";
+          } else if (name.includes("fade") || name.includes("taper")) {
+            matchedHairId = "taper-fade";
+          } else if (name.includes("pomp")) {
+            matchedHairId = "classic-pomp";
+          } else if (name.includes("quiff") || name.includes("spiky") || name.includes("hawk")) {
+            matchedHairId = "textured-quiff";
+          } else if (name.includes("undercut") || name.includes("slick")) {
+            matchedHairId = "textured-undercut";
+          } else if (name.includes("part") || name.includes("comb")) {
+            matchedHairId = "comb-over";
+          } else if (name.includes("long") || name.includes("wave") || name.includes("flow") || name.includes("bun")) {
+            matchedHairId = "long-waves";
+          } else if (name.includes("curly") || name.includes("afro") || name.includes("twist") || name.includes("braid")) {
+            matchedHairId = "curly-crop";
+          }
+          handleHairSelect(matchedHairId);
+
+          let matchedBeardId = "medium-stubble";
+          if (name.includes("clean") || name.includes("shave")) {
+            matchedBeardId = "clean-shave";
+          } else if (name.includes("stubble") || name.includes("shadow") || name.includes("scruff")) {
+            matchedBeardId = "medium-stubble";
+          } else if (name.includes("full") || name.includes("beard") || name.includes("lumberjack") || name.includes("garibaldi")) {
+            matchedBeardId = "classic-full";
+          } else if (name.includes("goatee") || name.includes("anchor") || name.includes("vandyke")) {
+            matchedBeardId = "circle-beard";
+          } else if (name.includes("chop") || name.includes("burns") || name.includes("mutton")) {
+            matchedBeardId = "friendly-chops";
+          } else if (name.includes("mustache") || name.includes("stache") || name.includes("handlebar")) {
+            matchedBeardId = "chevron";
+          }
+          handleBeardSelect(matchedBeardId);
+
+          if (name.includes("sunglasses") || name.includes("shades")) setCanvasAccessory("sunglasses");
+          else if (name.includes("glasses") || name.includes("spectacles")) setCanvasAccessory("glasses");
+          else if (name.includes("earring")) setCanvasAccessory("earrings");
+          else if (name.includes("turban") || name.includes("safa")) setCanvasAccessory("turban");
+
+          if (name.includes("blonde") || name.includes("gold") || name.includes("bronze")) setCanvasHairColor("#B45309");
+          else if (name.includes("purple") || name.includes("color")) setCanvasHairColor("#7C3AED");
+          else if (name.includes("brown")) setCanvasHairColor("#4A2E1B");
+          else if (name.includes("black")) setCanvasHairColor("#1A1A1A");
+
           setAvatarScanning(false);
           setScanMessage("");
-          setAvatarScanResult(`AI Scan Match: ${selected.toUpperCase()} face shape detected (Confidence: ${Math.round(87 + Math.random() * 10)}%)`);
+          setAvatarScanResult(`AI Scan Match: Face shape & matching hair/beard style detected (Confidence: ${Math.round(87 + Math.random() * 10)}%)`);
           
           setTimeout(() => setAvatarScanResult(null), 6000);
         }, 800);
@@ -390,15 +633,65 @@ export default function CustomerDashboard() {
       <div className="lg:col-span-3">
         {activeTab === "book" && (
           <div className="glass-panel p-6 rounded-2xl border border-slate-200/60 shadow-sm bg-white space-y-6">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="font-display font-extrabold text-xl text-slate-900">Smart Appointment Booking</h3>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">Step {bookingStep} of 4</p>
+            {/* Redesigned Booking Timeline Nodes */}
+            <div className="border-b border-slate-100 pb-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="font-display font-extrabold text-xl text-slate-900">Smart Appointment Booking</h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">BELSOME automated scheduling engine</p>
+                </div>
+                <span className="text-[10px] px-2.5 py-1 rounded bg-purple-50 border border-purple-100 text-purple-700 font-mono font-bold shadow-sm uppercase tracking-wider">
+                  STEP {bookingStep} of 4
+                </span>
               </div>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map((s) => (
-                  <div key={s} className={`w-6 h-1 rounded-full ${s <= bookingStep ? "bg-brand-primary" : "bg-slate-100"}`} />
-                ))}
+              
+              {/* Horizontal Timeline Tracker */}
+              <div className="relative flex items-center justify-between mt-6 px-4">
+                {/* Background connector line */}
+                <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-100 -translate-y-1/2 z-0" />
+                <div 
+                  className="absolute top-1/2 left-4 h-0.5 bg-brand-primary -translate-y-1/2 z-0 transition-all duration-300"
+                  style={{ width: `${((bookingStep - 1) / 3) * 100}%` }}
+                />
+
+                {[
+                  { step: 1, label: "Service", desc: "Select care" },
+                  { step: 2, label: "Stylist", desc: "Choose artist" },
+                  { step: 3, label: "Schedule", desc: "Select time" },
+                  { step: 4, label: "Review", desc: "Calculate price" }
+                ].map((node) => {
+                  const isActive = node.step === bookingStep;
+                  const isCompleted = node.step < bookingStep;
+                  return (
+                    <div 
+                      key={node.step} 
+                      onClick={() => {
+                        if (node.step < bookingStep) {
+                          setBookingStep(node.step);
+                        }
+                      }}
+                      className={`relative flex flex-col items-center z-10 cursor-pointer group`}
+                    >
+                      <div 
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border transition-all duration-300 ${
+                          isActive 
+                            ? "bg-brand-primary border-brand-primary text-white ring-4 ring-purple-100 shadow-md scale-110"
+                            : isCompleted
+                            ? "bg-purple-100 border-purple-200 text-purple-700"
+                            : "bg-white border-slate-200 text-slate-400 group-hover:border-slate-350"
+                        }`}
+                      >
+                        {isCompleted ? <CheckCircle className="w-4 h-4 text-purple-700" /> : node.step}
+                      </div>
+                      <span className={`text-[11px] font-bold mt-2 ${isActive ? "text-brand-primary" : isCompleted ? "text-purple-700" : "text-slate-500"}`}>
+                        {node.label}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-semibold hidden sm:inline leading-none mt-0.5">
+                        {node.desc}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -787,36 +1080,55 @@ export default function CustomerDashboard() {
                   </div>
                 ) : quizResult ? (
                   <div className="space-y-6">
-                    <div className="glass-panel p-6 rounded-2xl border border-purple-100 bg-gradient-to-r from-white to-purple-50/30 space-y-4 shadow-sm">
-                      <div className="inline-block px-3 py-1 rounded bg-purple-50 border border-purple-100 text-purple-700 font-mono text-[10px] tracking-wider uppercase font-bold">
-                        Style DNA Profile Generated
-                      </div>
-                      <div>
-                        <h3 className="font-display font-extrabold text-3xl text-slate-900 leading-none">{quizResult.profileName}</h3>
-                        <p className="text-xs text-purple-700 font-bold tracking-wide mt-1.5">{quizResult.tagline}</p>
-                      </div>
-                      <p className="text-xs text-slate-600 leading-relaxed max-w-2xl font-semibold">{quizResult.description}</p>
+                    {/* Style DNA Passport Card */}
+                    <div className="relative rounded-2xl border-2 border-amber-500/20 bg-slate-950 p-6 space-y-6 shadow-2xl text-white overflow-hidden">
+                      {/* Gold foil header line */}
+                      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500" />
                       
-                      <div className="h-px bg-slate-200 my-2" />
+                      {/* High-tech glow and background details */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                        <div className="bg-white p-3 rounded-lg border border-slate-200/80 shadow-sm">
-                          <span className="text-[10px] text-purple-700 block font-mono font-bold uppercase">Hair Suggestion</span>
-                          <span className="font-bold text-slate-900 mt-1 block leading-tight">{quizResult.hairSuggestion}</span>
+                      {/* Barcode/HUD details */}
+                      <div className="absolute top-6 right-6 flex flex-col items-end opacity-45 font-mono text-[8px] text-slate-400">
+                        <span>PASSPORT ID: B-{quizResult.profileName.substring(0,3).toUpperCase()}-{Math.floor(1000 + Math.random() * 9000)}</span>
+                        <span>ISSUED: 2026-06-03</span>
+                        <div className="h-6 w-24 bg-white mt-1 border-l-4 border-black" style={{ backgroundImage: "repeating-linear-gradient(90deg, #000, #000 2px, #fff 2px, #fff 4px)" }} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="inline-block px-2.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-amber-400 font-mono text-[9px] tracking-widest uppercase font-bold">
+                          BELSOME STYLE DNA PASSPORT
+                        </span>
+                        <h3 className="font-display font-black text-3xl text-white tracking-wide mt-2">{quizResult.profileName} Identity</h3>
+                        <p className="text-xs text-amber-300 font-bold font-mono tracking-wider">{quizResult.tagline}</p>
+                      </div>
+
+                      <p className="text-xs text-slate-350 leading-relaxed max-w-xl font-medium border-l-2 border-amber-500/40 pl-3">
+                        {quizResult.description}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2">
+                        <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 shadow-inner flex flex-col justify-between min-h-[80px]">
+                          <span className="text-[9px] text-amber-400 font-mono font-bold uppercase tracking-wider">Hair Suggestion</span>
+                          <span className="font-bold text-white mt-1.5 block leading-tight">{quizResult.hairSuggestion}</span>
                         </div>
-                        <div className="bg-white p-3 rounded-lg border border-slate-200/80 shadow-sm">
-                          <span className="text-[10px] text-pink-700 block font-mono font-bold uppercase">Beard Suggestion</span>
-                          <span className="font-bold text-slate-900 mt-1 block leading-tight">{quizResult.beardSuggestion}</span>
+                        <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 shadow-inner flex flex-col justify-between min-h-[80px]">
+                          <span className="text-[9px] text-pink-400 font-mono font-bold uppercase tracking-wider">Beard Suggestion</span>
+                          <span className="font-bold text-white mt-1.5 block leading-tight">{quizResult.beardSuggestion}</span>
                         </div>
-                        <div className="bg-white p-3 rounded-lg border border-slate-200/80 shadow-sm">
-                          <span className="text-[10px] text-amber-700 block font-mono font-bold uppercase">Color Suggestion</span>
-                          <span className="font-bold text-slate-900 mt-1 block leading-tight">{quizResult.colorSuggestion}</span>
+                        <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 shadow-inner flex flex-col justify-between min-h-[80px]">
+                          <span className="text-[9px] text-purple-400 font-mono font-bold uppercase tracking-wider">Color Suggestion</span>
+                          <span className="font-bold text-white mt-1.5 block leading-tight">{quizResult.colorSuggestion}</span>
                         </div>
                       </div>
 
-                      <div className="p-3 bg-slate-100/50 rounded-lg text-xs leading-relaxed text-slate-600 font-semibold">
-                        <strong className="text-slate-800 block mb-1">DNA Vibe Alignment:</strong>
-                        {quizResult.matchReasoning}
+                      <div className="p-4 bg-slate-900/40 border border-slate-800 rounded-xl text-xs leading-relaxed text-slate-300 font-semibold flex items-start gap-2.5 shadow-sm">
+                        <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-white block mb-1 font-mono text-[10px] tracking-wider uppercase">DNA Alignment Reasoning:</strong>
+                          {quizResult.matchReasoning}
+                        </div>
                       </div>
                     </div>
 
@@ -870,6 +1182,8 @@ export default function CustomerDashboard() {
                 ) : null}
               </div>
             )}
+          </div>
+        )}
              {/* Be Next Hero & Look Finder */}
         {activeTab === "hero" && (
           <div className="glass-panel p-6 rounded-2xl border border-slate-200/60 shadow-sm bg-white space-y-6">
@@ -1116,21 +1430,14 @@ export default function CustomerDashboard() {
                             const face = (heroResult.faceShape?.toLowerCase().includes("round") ? "round" :
                                           heroResult.faceShape?.toLowerCase().includes("square") ? "square" :
                                           heroResult.faceShape?.toLowerCase().includes("heart") ? "heart" : "oval") as any;
-                            const hair = (heroResult.hairstyle?.toLowerCase().includes("quiff") ? "quiff" :
-                                          heroResult.hairstyle?.toLowerCase().includes("undercut") ? "undercut" :
-                                          heroResult.hairstyle?.toLowerCase().includes("part") ? "sidepart" : "pompadour") as any;
-                            const beard = (heroResult.beard?.toLowerCase().includes("stubble") ? "stubble" :
-                                           heroResult.beard?.toLowerCase().includes("full") ? "full" :
-                                           heroResult.beard?.toLowerCase().includes("goatee") ? "goatee" : "none") as any;
                             
                             setCanvasFaceShape(face);
-                            setCanvasHair(hair);
-                            setCanvasBeard(beard);
+                            handleTryStyleMatch(heroResult.hairstyle, heroResult.beard);
                             setCanvasHairScale(1.0);
                             setCanvasHairY(0);
                             setActiveTab("canvas");
                           }}
-                          className="px-4 py-2 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs uppercase tracking-wider hover:bg-purple-100 transition-all text-center flex items-center justify-center gap-1.5"
+                          className="px-4 py-2 rounded-lg bg-purple-55 border border-purple-200 text-purple-700 font-bold text-xs uppercase tracking-wider hover:bg-purple-100 transition-all text-center flex items-center justify-center gap-1.5"
                         >
                           <Sliders className="w-3.5 h-3.5" /> Try In Simulator
                         </button>
@@ -1248,54 +1555,58 @@ export default function CustomerDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-              {/* Simulator Display Card */}
-              <div className="md:col-span-5 flex flex-col items-center justify-between p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-inner relative overflow-hidden min-h-[440px]">
-                {/* Local Styles for scanning animation */}
-                <style dangerouslySetInnerHTML={{__html: `
-                  @keyframes avatarScanLineAnimation {
-                    0% { top: 12%; }
-                    50% { top: 88%; }
-                    100% { top: 12%; }
-                  }
-                  .avatar-scan-line {
-                    position: absolute;
-                    left: 5%;
-                    width: 90%;
-                    height: 3px;
-                    background: linear-gradient(90deg, transparent, #8B5CF6, transparent);
-                    box-shadow: 0 0 10px #a78bfa;
-                    animation: avatarScanLineAnimation 2.2s linear infinite;
-                    z-index: 10;
-                  }
-                `}} />
+              {/* Simulator Display Column */}
+              <div className="md:col-span-5 flex flex-col">
+                <div className="flex flex-col items-center justify-between p-6 rounded-2xl relative overflow-hidden min-h-[440px] hud-panel hud-panel-glow">
+                  {/* HUD Corners */}
+                  <div className="hud-corner hud-corner-tl" />
+                  <div className="hud-corner hud-corner-tr" />
+                  <div className="hud-corner hud-corner-bl" />
+                  <div className="hud-corner hud-corner-br" />
 
-                {avatarScanning && (
-                  <div className="absolute inset-0 bg-purple-700/5 backdrop-blur-[1px] flex flex-col items-center justify-center z-20">
-                    <div className="avatar-scan-line" />
-                    <div className="bg-white/95 border border-purple-250 px-3 py-2 rounded-xl shadow-md flex flex-col items-center gap-1.5 text-center max-w-[200px] animate-pulse">
-                      <RefreshCcw className="w-4 h-4 text-purple-600 animate-spin" />
-                      <span className="text-[10px] font-mono font-bold text-purple-800 uppercase tracking-wider">
-                        {scanMessage}
-                      </span>
+                  {/* Laser scan line overlay */}
+                  {(uploadedImageSrc || avatarScanning) && <div className="green-scan-line" />}
+
+                  {avatarScanning && (
+                    <div className="absolute inset-0 bg-emerald-950/20 backdrop-blur-[1px] flex flex-col items-center justify-center z-20">
+                      <div className="bg-slate-900 border border-emerald-500/30 px-3 py-2 rounded-xl shadow-lg flex flex-col items-center gap-1.5 text-center max-w-[200px] animate-pulse text-white">
+                        <RefreshCcw className="w-4 h-4 text-emerald-400 animate-spin" />
+                        <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                          {scanMessage}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {avatarScanResult && (
-                  <div className="absolute top-10 left-4 right-4 bg-emerald-50 border border-emerald-250 text-emerald-800 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 shadow-md z-10 animate-fade-in border-l-4 border-l-emerald-500">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{avatarScanResult}</span>
-                  </div>
-                )}
+                  {avatarScanResult && (
+                    <div className="absolute top-12 left-4 right-4 bg-emerald-950/90 border border-emerald-500/30 text-emerald-350 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-1.5 shadow-md z-10 animate-fade-in border-l-4 border-l-emerald-500">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{avatarScanResult}</span>
+                    </div>
+                  )}
 
-                <div className="absolute top-2 left-2 flex gap-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                </div>
-                <div className="absolute top-2 right-2 text-[9px] font-mono font-bold text-slate-400 bg-white/80 border border-slate-150 px-2 py-0.5 rounded shadow-sm">
-                  AVATAR PREVIEW
-                </div>
+                  <div className="absolute top-3 left-3 flex gap-1 z-10">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  </div>
+
+                  {/* Pulsing indicator */}
+                  {uploadedImageSrc ? (
+                    <div className="absolute top-2.5 left-14 bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-[8.5px] font-mono font-bold tracking-wider px-2 py-0.5 rounded shadow flex items-center gap-1.5 z-10 animate-pulse">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      AI SCAN ALIGNMENT ACTIVE
+                    </div>
+                  ) : (
+                    <div className="absolute top-2.5 left-14 bg-slate-900/80 border border-slate-700 text-slate-400 text-[8.5px] font-mono font-bold tracking-wider px-2 py-0.5 rounded shadow flex items-center gap-1.5 z-10">
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                      MANUAL SIMULATOR MODE
+                    </div>
+                  )}
+
+                  <div className="absolute top-2.5 right-3 text-[9px] font-mono font-bold text-slate-350 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded shadow-sm z-10">
+                    HUD AVATAR PREVIEW
+                  </div>
 
                 {/* SVG Render Container */}
                 <div className="w-full flex items-center justify-center py-4 flex-1">
@@ -1415,6 +1726,19 @@ export default function CustomerDashboard() {
                             <path d="M170,225 Q200,218 230,225 Q200,237 170,225 Z" />
                           </g>
                         )}
+                        {canvasBeard === "mustache" && (
+                          <g fill={canvasBeardColor(canvasHairColor)}>
+                            <path d="M165,228 Q200,220 235,228 Q220,240 200,232 Q180,240 165,228 Z" />
+                          </g>
+                        )}
+                        {canvasBeard === "muttonchops" && (
+                          <g fill={canvasBeardColor(canvasHairColor)}>
+                            {/* Left Chop */}
+                            <path d="M125,160 C125,160 142,160 148,180 C155,200 155,225 140,245 C132,235 126,200 125,160 Z" />
+                            {/* Right Chop */}
+                            <path d="M275,160 C275,160 258,160 252,180 C245,200 245,225 260,245 C268,235 274,200 275,160 Z" />
+                          </g>
+                        )}
                       </g>
                     )}
 
@@ -1469,6 +1793,27 @@ export default function CustomerDashboard() {
                             />
                           </g>
                         )}
+
+                        {canvasHair === "buzz" && (
+                          <path 
+                            d="M130,132 C125,75 145,60 200,60 C255,60 275,75 270,132 C265,135 255,130 255,120 C255,95 240,80 200,80 C160,80 145,95 145,120 C145,130 135,135 130,132 Z" 
+                            fill={canvasHairFill(canvasHairColor)} 
+                          />
+                        )}
+
+                        {canvasHair === "long" && (
+                          <path 
+                            d="M130,120 C130,60 160,35 200,35 C240,35 270,60 270,120 C275,170 285,240 260,260 C248,220 255,160 255,135 C255,95 240,70 200,70 C160,70 145,95 145,135 C145,160 152,220 140,260 C115,240 125,170 130,120 Z" 
+                            fill={canvasHairFill(canvasHairColor)} 
+                          />
+                        )}
+
+                        {canvasHair === "curly" && (
+                          <path 
+                            d="M125,130 C118,110 108,95 118,75 C108,55 128,35 160,35 C170,20 190,15 200,20 C210,15 230,20 240,35 C272,35 292,55 282,75 C292,95 282,110 275,130 C272,135 264,125 258,105 C252,65 242,60 200,58 C158,60 148,65 142,105 C136,125 128,135 125,130 Z" 
+                            fill={canvasHairFill(canvasHairColor)} 
+                          />
+                        )}
                       </g>
                     )}
 
@@ -1509,12 +1854,49 @@ export default function CustomerDashboard() {
                   </svg>
                 </div>
 
-                <div className="w-full flex items-center justify-between text-[10px] text-slate-500 font-mono font-bold bg-white/70 border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                  <span>Face: <strong className="text-slate-800 uppercase">{canvasFaceShape}</strong></span>
-                  <span>Hair: <strong className="text-slate-800 uppercase">{canvasHair}</strong></span>
-                  <span>Beard: <strong className="text-slate-800 uppercase">{canvasBeard}</strong></span>
-                  <span>Acc: <strong className="text-slate-800 uppercase">{canvasAccessory}</strong></span>
+                  <div className="w-full flex items-center justify-between text-[10px] text-emerald-450 font-mono font-bold bg-slate-900 border border-emerald-500/20 px-3 py-2 rounded-lg shadow-sm">
+                    <span>Face: <strong className="text-white uppercase">{canvasFaceShape}</strong></span>
+                    <span>Hair: <strong className="text-white uppercase">{activeHairItem.name}</strong></span>
+                    <span>Beard: <strong className="text-white uppercase">{activeBeardItem.name}</strong></span>
+                    <span>Acc: <strong className="text-white uppercase">{canvasAccessory}</strong></span>
+                  </div>
                 </div>
+
+                {/* Uploaded Reference Card */}
+                {uploadedImageSrc && (
+                  <div className="w-full bg-slate-950 border border-emerald-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden mt-4 animate-fade-in hud-panel hud-panel-glow">
+                    {/* Scanning laser line overlay */}
+                    <div className="green-scan-line" />
+                    
+                    {/* HUD Corners */}
+                    <div className="hud-corner hud-corner-tl" />
+                    <div className="hud-corner hud-corner-tr" />
+                    <div className="hud-corner hud-corner-bl" />
+                    <div className="hud-corner hud-corner-br" />
+                    
+                    <div className="absolute top-2.5 left-3 text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/20 px-2 py-0.5 rounded shadow-sm uppercase flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      AI Reference Portrait
+                    </div>
+                    
+                    <div className="absolute top-2.5 right-3 text-[9.5px] font-mono text-slate-400">
+                      SCAN ACTIVE
+                    </div>
+                    
+                    <div className="w-full aspect-[4/3] rounded-lg overflow-hidden border border-slate-800 bg-slate-950 shadow-inner flex items-center justify-center mt-6">
+                      <img
+                        src={uploadedImageSrc}
+                        className="w-full h-full object-cover opacity-90"
+                        alt="AI Grooming Reference"
+                      />
+                    </div>
+
+                    <div className="mt-3 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                      <span>Jawline Align: <strong className="text-emerald-400">98%</strong></span>
+                      <span>Contrast: <strong className="text-emerald-400">Optimal</strong></span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Control Panel Column */}
@@ -1543,9 +1925,9 @@ export default function CustomerDashboard() {
                 })()}
 
                 {/* Section 1: Face Shape & Skin */}
-                <div className="space-y-2">
+                <div className="space-y-2 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-mono font-bold text-purple-700 uppercase tracking-wider">1. Face Geometry & Tone</h4>
+                    <h4 className="text-xs font-mono font-bold text-purple-800 uppercase tracking-wider">1. Face Geometry & Tone</h4>
                     <div>
                       <input
                         type="file"
@@ -1556,11 +1938,11 @@ export default function CustomerDashboard() {
                       />
                       <button
                         onClick={() => document.getElementById("avatar-scan-file")?.click()}
-                        className="px-2.5 py-1 rounded bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-755 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm"
+                        className="px-2.5 py-1 rounded bg-purple-50 border border-purple-200 text-purple-755 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm"
                         title="Upload a photo to automatically analyze your face shape geometry"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        AI Scan Shape
+                        AI Scan & Match Photo
                       </button>
                     </div>
                   </div>
@@ -1568,10 +1950,11 @@ export default function CustomerDashboard() {
                     {["oval", "round", "square", "heart"].map((shape) => (
                       <button
                         key={shape}
+                        type="button"
                         onClick={() => setCanvasFaceShape(shape as any)}
                         className={`py-2 rounded-xl text-xs font-bold capitalize border transition-all ${
                           canvasFaceShape === shape
-                            ? "bg-purple-50 border-purple-300 text-purple-700 shadow-sm"
+                            ? "bg-purple-600 border-purple-600 text-white shadow-sm"
                             : "bg-white border-slate-200 hover:bg-slate-50 text-slate-655"
                         }`}
                       >
@@ -1582,7 +1965,7 @@ export default function CustomerDashboard() {
 
                   {/* Skin Tone Selector */}
                   <div className="flex items-center gap-3 pt-1">
-                    <span className="text-[11px] font-semibold text-slate-505">Skin Tone:</span>
+                    <span className="text-[11px] font-semibold text-slate-550">Skin Tone:</span>
                     <div className="flex gap-2">
                       {[
                         { code: "#FCD5B5", name: "Fair" },
@@ -1592,6 +1975,7 @@ export default function CustomerDashboard() {
                       ].map((t) => (
                         <button
                           key={t.code}
+                          type="button"
                           onClick={() => setCanvasSkinTone(t.code)}
                           className={`w-6 h-6 rounded-full border transition-all ${
                             canvasSkinTone === t.code ? "ring-2 ring-purple-600 scale-110 shadow-sm" : "border-slate-300 hover:scale-105"
@@ -1604,34 +1988,80 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
 
-                {/* Section 2: Hairstyle & Color */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-mono font-bold text-purple-700 uppercase tracking-wider">2. Hair Styling</h4>
-                  <div className="grid grid-cols-5 gap-2">
-                    {[
-                      { id: "none", label: "Clean" },
-                      { id: "pompadour", label: "Pomp" },
-                      { id: "quiff", label: "Quiff" },
-                      { id: "undercut", label: "Undercut" },
-                      { id: "sidepart", label: "Part" }
-                    ].map((style) => (
+                {/* Section 2: Redesigned Searchable Hairstyle Selector */}
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-mono font-bold text-purple-800 uppercase tracking-wider">2. Choose Hairstyle (50+ options)</h4>
+                    <span className="text-[9px] bg-purple-100 text-purple-850 px-2 py-0.5 rounded font-mono font-bold">
+                      {HAIRSTYLES_LIST.length} Styles
+                    </span>
+                  </div>
+                  
+                  {/* Search Bar */}
+                  <input
+                    type="text"
+                    value={hairSearch}
+                    onChange={(e) => setHairSearch(e.target.value)}
+                    placeholder="🔍 Search hair cuts, fades, crops..."
+                    className="w-full bg-white border border-slate-250 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary placeholder-slate-400 font-semibold shadow-sm"
+                  />
+
+                  {/* Category Pills */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                    {["All", "Fades", "Classic", "Volume", "Undercuts", "Long", "Curly"].map((cat) => (
                       <button
-                        key={style.id}
-                        onClick={() => setCanvasHair(style.id as any)}
-                        className={`py-2 rounded-xl text-[11px] font-bold border transition-all ${
-                          canvasHair === style.id
-                            ? "bg-purple-50 border-purple-300 text-purple-700 shadow-sm"
-                            : "bg-white border-slate-200 hover:bg-slate-50 text-slate-655"
+                        key={cat}
+                        type="button"
+                        onClick={() => setHairFilterCat(cat)}
+                        className={`px-2.5 py-1 rounded text-[10px] border transition-all font-bold whitespace-nowrap ${
+                          hairFilterCat === cat
+                            ? "bg-purple-600 border-purple-600 text-white shadow-sm"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >
-                        {style.label}
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* List of Styles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {HAIRSTYLES_LIST.filter((h) => {
+                      const matchesSearch = h.name.toLowerCase().includes(hairSearch.toLowerCase()) || 
+                                            h.tip?.toLowerCase().includes(hairSearch.toLowerCase());
+                      const matchesCat = hairFilterCat === "All" || h.category === hairFilterCat;
+                      return matchesSearch && matchesCat;
+                    }).map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => handleHairSelect(style.id)}
+                        className={`p-2.5 rounded-lg border text-left transition-all flex flex-col justify-between gap-1 group relative overflow-hidden ${
+                          selectedHairId === style.id
+                            ? "bg-purple-50/80 border-purple-400 ring-1 ring-purple-400"
+                            : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-355"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <span className="font-bold text-xs text-slate-800 leading-tight group-hover:text-purple-700 transition-colors">
+                            {style.name}
+                          </span>
+                          <span className="text-[8px] bg-slate-100 border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                            {style.category}
+                          </span>
+                        </div>
+                        {style.tip && (
+                          <span className="text-[9px] text-slate-400 leading-tight mt-0.5 font-semibold group-hover:text-slate-500 transition-colors">
+                            {style.tip}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
 
                   {/* Hair Color Selector */}
-                  <div className="flex items-center gap-3 pt-1">
-                    <span className="text-[11px] font-semibold text-slate-505">Hair Color:</span>
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-200/50">
+                    <span className="text-[11px] font-semibold text-slate-550">Hair Accent Color:</span>
                     <div className="flex gap-2">
                       {[
                         { code: "#1A1A1A", name: "Black" },
@@ -1641,6 +2071,7 @@ export default function CustomerDashboard() {
                       ].map((c) => (
                         <button
                           key={c.code}
+                          type="button"
                           onClick={() => setCanvasHairColor(c.code)}
                           className={`w-6 h-6 rounded-full border transition-all flex items-center justify-center ${
                             canvasHairColor === c.code ? "ring-2 ring-purple-650 scale-110 shadow-sm" : "border-slate-300 hover:scale-105"
@@ -1655,34 +2086,81 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
 
-                {/* Section 3: Beard Styling */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-mono font-bold text-purple-700 uppercase tracking-wider">3. Beard Styling</h4>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { id: "none", label: "Clean Shave" },
-                      { id: "stubble", label: "Stubble" },
-                      { id: "goatee", label: "Goatee" },
-                      { id: "full", label: "Full Beard" }
-                    ].map((style) => (
+                {/* Section 3: Redesigned Searchable Beard Selector */}
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-mono font-bold text-purple-800 uppercase tracking-wider">3. Choose Facial Hair (50 options)</h4>
+                    <span className="text-[9px] bg-purple-100 text-purple-855 px-2 py-0.5 rounded font-mono font-bold">
+                      {BEARDS_LIST.length} Styles
+                    </span>
+                  </div>
+                  
+                  {/* Search Bar */}
+                  <input
+                    type="text"
+                    value={beardSearch}
+                    onChange={(e) => setBeardSearch(e.target.value)}
+                    placeholder="🔍 Search stubble, goatee, mustache..."
+                    className="w-full bg-white border border-slate-255 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary placeholder-slate-400 font-semibold shadow-sm"
+                  />
+
+                  {/* Category Pills */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                    {["All", "Stubble", "Full Beard", "Goatee", "Chops", "Mustache", "Other"].map((cat) => (
                       <button
-                        key={style.id}
-                        onClick={() => setCanvasBeard(style.id as any)}
-                        className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                          canvasBeard === style.id
-                            ? "bg-purple-50 border-purple-300 text-purple-700 shadow-sm"
-                            : "bg-white border-slate-200 hover:bg-slate-50 text-slate-655"
+                        key={cat}
+                        type="button"
+                        onClick={() => setBeardFilterCat(cat)}
+                        className={`px-2.5 py-1 rounded text-[10px] border transition-all font-bold whitespace-nowrap ${
+                          beardFilterCat === cat
+                            ? "bg-purple-600 border-purple-600 text-white shadow-sm"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                       >
-                        {style.label}
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* List of Styles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {BEARDS_LIST.filter((b) => {
+                      const matchesSearch = b.name.toLowerCase().includes(beardSearch.toLowerCase()) || 
+                                            b.tip?.toLowerCase().includes(beardSearch.toLowerCase());
+                      const matchesCat = beardFilterCat === "All" || b.category === beardFilterCat;
+                      return matchesSearch && matchesCat;
+                    }).map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => handleBeardSelect(style.id)}
+                        className={`p-2.5 rounded-lg border text-left transition-all flex flex-col justify-between gap-1 group relative overflow-hidden ${
+                          selectedBeardId === style.id
+                            ? "bg-purple-50/80 border-purple-400 ring-1 ring-purple-400"
+                            : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-355"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <span className="font-bold text-xs text-slate-800 leading-tight group-hover:text-purple-700 transition-colors">
+                            {style.name}
+                          </span>
+                          <span className="text-[8px] bg-slate-100 border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                            {style.category}
+                          </span>
+                        </div>
+                        {style.tip && (
+                          <span className="text-[9px] text-slate-400 leading-tight mt-0.5 font-semibold group-hover:text-slate-500 transition-colors">
+                            {style.tip}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Section 4: Accessory Add-ons */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-mono font-bold text-purple-700 uppercase tracking-wider">4. Accessory Accents</h4>
+                <div className="space-y-2 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-mono font-bold text-purple-800 uppercase tracking-wider">4. Accessory Accents</h4>
                   <div className="grid grid-cols-5 gap-2">
                     {[
                       { id: "none", label: "None" },
@@ -1693,10 +2171,11 @@ export default function CustomerDashboard() {
                     ].map((acc) => (
                       <button
                         key={acc.id}
+                        type="button"
                         onClick={() => setCanvasAccessory(acc.id as any)}
                         className={`py-2 rounded-xl text-[11px] font-bold border transition-all ${
                           canvasAccessory === acc.id
-                            ? "bg-purple-50 border-purple-300 text-purple-700 shadow-sm"
+                            ? "bg-purple-650 border-purple-650 text-white shadow-sm"
                             : "bg-white border-slate-200 hover:bg-slate-50 text-slate-655"
                         }`}
                       >
@@ -1750,6 +2229,7 @@ export default function CustomerDashboard() {
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
+                    type="button"
                     onClick={() => {
                       const matchedServ = services.find((s) => s.name.toLowerCase().includes(canvasHair === "none" ? "shave" : "haircut")) || services[0];
                       setSelectedService(matchedServ.id);
@@ -1761,22 +2241,25 @@ export default function CustomerDashboard() {
                     Book This Style & Cut
                   </button>
                   <button
+                    type="button"
                     onClick={exportAvatarSvg}
                     className="px-4 py-3 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-750 font-bold text-xs uppercase tracking-wider transition-all"
                   >
                     Export Vector
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       // Reset to defaults
+                      setSelectedHairId("classic-pomp");
+                      setSelectedBeardId("medium-stubble");
                       setCanvasFaceShape("oval");
                       setCanvasSkinTone("#F5C29A");
-                      setCanvasHair("pompadour");
                       setCanvasHairColor("#1A1A1A");
                       setCanvasHairScale(1.0);
                       setCanvasHairY(0);
-                      setCanvasBeard("stubble");
                       setCanvasAccessory("none");
+                      setUploadedImageSrc(null);
                     }}
                     className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition-all"
                   >
@@ -1815,38 +2298,61 @@ export default function CustomerDashboard() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Countdown Timer */}
-                  <div className="glass-panel p-5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-center items-center text-center gap-2">
-                    <span className="text-[10px] text-purple-700 font-mono uppercase font-bold tracking-wider">SLA Seating Countdown</span>
-                    <h4 className="font-display font-extrabold text-4xl text-slate-800 tracking-widest font-mono">
+                {/* Redesigned SLA Express Ticket Stub */}
+                <div className="relative border border-purple-150 rounded-2xl bg-white shadow-lg overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-dashed divide-purple-250">
+                  {/* Left/Right Perforated holes */}
+                  <div className="absolute top-1/2 -left-3 w-6 h-6 rounded-full bg-[#F8FAFC] border border-slate-200 -translate-y-1/2 z-20 hidden md:block" />
+                  <div className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-[#F8FAFC] border border-slate-200 -translate-y-1/2 z-20 hidden md:block" />
+
+                  {/* Left Stub: The countdown timer */}
+                  <div className="p-6 flex flex-col justify-center items-center text-center gap-2 md:w-2/5 bg-gradient-to-b from-purple-50/20 to-white">
+                    <span className="text-[9px] text-purple-700 font-mono uppercase font-bold tracking-widest">SLA Countdown</span>
+                    <h4 className="font-display font-extrabold text-4xl text-slate-900 tracking-widest font-mono animate-pulse-glow">
                       {Math.floor(expressCountdown / 60)}:{(expressCountdown % 60).toString().padStart(2, "0")}
                     </h4>
-                    <span className="text-[9px] text-slate-400 font-semibold">Minutes : Seconds Remaining</span>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase font-mono">Time Remaining</span>
                   </div>
 
-                  {/* Queue Status */}
-                  <div className="glass-panel p-5 rounded-xl border border-slate-200 bg-white flex flex-col justify-center gap-2 text-xs text-slate-600 font-semibold">
-                    <div className="flex justify-between"><span className="text-slate-400">Queue Position:</span><strong className="text-slate-800 font-bold">1st in line</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">Stylist Assigned:</span><strong className="text-slate-800 font-bold">Vikram Malhotra</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">Check-in Distance:</span><strong className="text-slate-800 font-bold">0.4 km</strong></div>
-                    <div className="flex justify-between"><span className="text-slate-400">Speed Rating:</span><strong className="text-green-600 font-bold">Fast (4.9⭐)</strong></div>
+                  {/* Middle Stub: The Queue Details */}
+                  <div className="p-6 flex-1 flex flex-col justify-center gap-3 text-xs text-slate-650 font-semibold bg-white">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Ticket Type:</span>
+                      <span className="text-purple-750 font-bold font-mono tracking-wider bg-purple-50 px-2 py-0.5 rounded border border-purple-100 uppercase animate-pulse">
+                        EXPRESS SLA PASS
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Queue Position:</span>
+                      <strong className="text-slate-850 font-bold">1st in line (Priority Seating)</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Assigned Stylist:</span>
+                      <strong className="text-slate-850 font-bold">Vikram Malhotra</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Est. Waiting:</span>
+                      <strong className="text-emerald-600 font-bold">Under 3 mins</strong>
+                    </div>
                   </div>
 
-                  {/* Action triggers */}
-                  <div className="glass-panel p-5 rounded-xl border border-slate-200 bg-white flex flex-col justify-center gap-2 shadow-sm">
-                    <span className="text-[9px] text-slate-400 font-mono uppercase block text-center font-bold">Demo Actions</span>
+                  {/* Right Stub: Actions */}
+                  <div className="p-6 flex flex-col justify-center gap-2 md:w-1/4 bg-slate-50/50">
+                    <span className="text-[9px] text-slate-400 font-mono uppercase block text-center font-bold">
+                      Control Desk
+                    </span>
                     <button
+                      type="button"
                       onClick={triggerSlaFailure}
-                      className="py-2 rounded bg-red-50 hover:bg-red-100 border border-red-200 text-xs text-red-700 font-bold transition-all shadow-sm"
+                      className="w-full py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-[10px] text-red-700 font-bold tracking-wider uppercase transition-all shadow-sm"
                     >
-                      Simulate SLA Timeout Fail
+                      Simulate Fail
                     </button>
                     <button
+                      type="button"
                       onClick={() => setExpressActive(false)}
-                      className="py-2 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-600 transition-all border border-slate-200"
+                      className="w-full py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[10px] text-slate-700 font-bold tracking-wider uppercase transition-all"
                     >
-                      Reset Express Track
+                      Cancel Pass
                     </button>
                   </div>
                 </div>
