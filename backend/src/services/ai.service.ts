@@ -18,7 +18,7 @@ if (gemini) {
 async function executeLLM(prompt: string, fallbackMock: () => any): Promise<any> {
   // ── Gemini path (primary, free) ──
   if (gemini) {
-    const model = gemini.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(
       prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
     );
@@ -37,7 +37,7 @@ async function executeLLMVision(
   fallbackMock: () => any
 ): Promise<any> {
   if (gemini) {
-    const model = gemini.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent([
       prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text.",
       imagePart
