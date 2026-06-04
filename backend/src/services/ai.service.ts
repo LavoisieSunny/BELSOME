@@ -18,13 +18,18 @@ if (gemini) {
 async function executeLLM(prompt: string, fallbackMock: () => any): Promise<any> {
   // ── Gemini path (primary, free) ──
   if (gemini) {
-    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(
-      prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
-    );
-    const text = result.response.text();
-    const cleaned = text.replace(/```json|```/gi, "").trim();
-    return JSON.parse(cleaned);
+    try {
+      const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(
+        prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
+      );
+      const text = result.response.text();
+      const cleaned = text.replace(/```json|```/gi, "").trim();
+      return JSON.parse(cleaned);
+    } catch (err: any) {
+      console.warn("⚠️ Gemini API call failed, using fallback:", err.message || err);
+      return fallbackMock();
+    }
   }
 
   // ── No keys — use mock ──
@@ -37,14 +42,19 @@ async function executeLLMVision(
   fallbackMock: () => any
 ): Promise<any> {
   if (gemini) {
-    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent([
-      prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text.",
-      imagePart
-    ]);
-    const text = result.response.text();
-    const cleaned = text.replace(/```json|```/gi, "").trim();
-    return JSON.parse(cleaned);
+    try {
+      const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent([
+        prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text.",
+        imagePart
+      ]);
+      const text = result.response.text();
+      const cleaned = text.replace(/```json|```/gi, "").trim();
+      return JSON.parse(cleaned);
+    } catch (err: any) {
+      console.warn("⚠️ Gemini Vision API call failed, using fallback:", err.message || err);
+      return fallbackMock();
+    }
   }
   return fallbackMock();
 }
