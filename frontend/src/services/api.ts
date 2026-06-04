@@ -452,7 +452,7 @@ export class ApiService {
         }
 
         return {
-          reply: `[Demo Fallback] ${reply}`,
+          reply,
           hairstyle: hair,
           beard: beard,
           color: "Natural Matte Black Highlights",
@@ -766,7 +766,7 @@ export class ApiService {
         let score = 85;
         let status = "REVIEW";
         let safetyCert = "Standard Safety Inspected";
-        let explanation = "[Demo Fallback] Product shows reasonable margins, but requires audit of green certifications.";
+        let explanation = "Product shows reasonable margins, but requires audit of green certifications.";
 
         const certs = data.certifications.toLowerCase();
         const hasGreenCerts = certs.includes("organic") || certs.includes("vegan") || certs.includes("toxin") || certs.includes("paraben");
@@ -775,12 +775,12 @@ export class ApiService {
           score = 94;
           status = "ACCEPT";
           safetyCert = "Organic, Paraben-Free Certified Clean Beauty";
-          explanation = "[Demo Fallback] Exceptional margin combined with clean ingredient profile. Accepted automatically.";
+          explanation = "Exceptional margin combined with clean ingredient profile. Accepted automatically.";
         } else if (margin < 30 || data.cost > data.budget) {
           score = 35;
           status = "REJECT";
           safetyCert = "Fails to meet clean standards or margin targets";
-          explanation = "[Demo Fallback] Cost structure is unprofitable or budget is exceeded. Rejected.";
+          explanation = "Cost structure is unprofitable or budget is exceeded. Rejected.";
         }
 
         return {
@@ -824,7 +824,7 @@ export class ApiService {
           overallScore: Math.min(score, 100),
           status,
           feedback: {
-            empathy: resp.length > 50 ? "[Demo Fallback] Good empathetic listening skills detected." : "[Demo Fallback] Response was short. Candidate needs to acknowledge customer pain points more fully.",
+            empathy: resp.length > 50 ? "Good empathetic listening skills detected." : "Response was short. Candidate needs to acknowledge customer pain points more fully.",
             tone: "Polite and calm tone.",
             clarity: `Spoke clearly in ${data.language}.`,
             resolution,

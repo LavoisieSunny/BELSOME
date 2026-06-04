@@ -13,12 +13,14 @@ export default function VendorDashboard() {
   const [retail, setRetail] = useState(800);
   const [loading, setLoading] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !brand) return;
 
     setLoading(true);
+    setError(null);
     try {
       const response = await ApiService.analyzeProcurement({
         name,
@@ -50,6 +52,7 @@ export default function VendorDashboard() {
       setBrand("");
     } catch (e) {
       console.error(e);
+      setError("AI is unavailable. Make sure the backend is running.");
     } finally {
       setLoading(false);
     }
@@ -144,6 +147,12 @@ export default function VendorDashboard() {
               Submit to Salon Network
             </button>
           </form>
+
+          {error && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+              {error}
+            </div>
+          )}
 
           {loading && (
             <div className="p-8 text-center text-xs text-slate-500 font-mono font-semibold flex items-center justify-center gap-2">

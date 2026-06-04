@@ -14,6 +14,8 @@ export default function OwnerDashboard() {
 
   const [activeTab, setActiveTab] = useState<"analytics" | "glow" | "procurement" | "staff" | "bridal">("analytics");
   const [error, setError] = useState<string | null>(null);
+  const [procureError, setProcureError] = useState<string | null>(null);
+  const [examError, setExamError] = useState<string | null>(null);
 
   // Glow pricing adjustments
   const currentSalon = salons[0];
@@ -54,7 +56,7 @@ export default function OwnerDashboard() {
     if (!prodName || !prodBrand) return;
 
     setProcureLoading(true);
-    setError(null);
+    setProcureError(null);
     try {
       const response = await ApiService.analyzeProcurement({
         name: prodName,
@@ -82,7 +84,7 @@ export default function OwnerDashboard() {
       setProdBrand("");
     } catch (e) {
       console.error(e);
-      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
+      setProcureError("AI is unavailable. Make sure the backend is running.");
     } finally {
       setProcureLoading(false);
     }
@@ -93,7 +95,7 @@ export default function OwnerDashboard() {
     if (!candidateName || !candidateResponse) return;
 
     setExamLoading(true);
-    setError(null);
+    setExamError(null);
     try {
       const response = await ApiService.evaluateBehavioral({
         scenario: examScenario,
@@ -113,7 +115,7 @@ export default function OwnerDashboard() {
       setCandidateResponse("");
     } catch (e) {
       console.error(e);
-      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
+      setExamError("AI is unavailable. Make sure the backend is running.");
     } finally {
       setExamLoading(false);
     }
@@ -369,9 +371,9 @@ export default function OwnerDashboard() {
                 </button>
               </form>
 
-              {error && (
+              {procureError && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
-                  {error}
+                  {procureError}
                 </div>
               )}
 
@@ -533,9 +535,9 @@ export default function OwnerDashboard() {
                 </button>
               </form>
 
-              {error && (
+              {examError && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
-                  {error}
+                  {examError}
                 </div>
               )}
 

@@ -180,6 +180,8 @@ export default function CustomerDashboard() {
   // Uploaded photo scanner state
   const [uploadedImageSrc, setUploadedImageSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [heroError, setHeroError] = useState<string | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   // Search & Filter state for 50+ styles
   const [hairSearch, setHairSearch] = useState("");
@@ -388,7 +390,9 @@ export default function CustomerDashboard() {
   const [selectedSalon, setSelectedSalon] = useState(salons[0].id);
   const [selectedService, setSelectedService] = useState(services[0].id);
   const [selectedStylist, setSelectedStylist] = useState(stylists[0].id);
-  const [bookingDate, setBookingDate] = useState("2026-06-04");
+  const [bookingDate, setBookingDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [bookingTime, setBookingTime] = useState("11:30 AM");
   const [confirmedBooking, setConfirmedBooking] = useState<any>(null);
 
@@ -472,11 +476,11 @@ export default function CustomerDashboard() {
     addAppointment(appointmentPayload);
     setConfirmedBooking(appointmentPayload);
     
-    // Reset booking form state so user can book again cleanly
+    // Reset booking form state so dapper user can book again cleanly
     setSelectedSalon(salons[0].id);
     setSelectedService(services[0].id);
     setSelectedStylist(stylists[0].id);
-    setBookingDate("2026-06-04");
+    setBookingDate(new Date().toISOString().split("T")[0]);
     setBookingTime("11:30 AM");
 
     setBookingStep(5);
@@ -484,14 +488,14 @@ export default function CustomerDashboard() {
 
   const handleQuizSubmit = async () => {
     setQuizLoading(true);
-    setError(null);
+    setQuizError(null);
     try {
       const dna = await ApiService.submitStyleDNA(quizAnswers);
       setQuizResult(dna);
       setQuizStep(6);
     } catch (e) {
       console.error(e);
-      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
+      setQuizError("AI is unavailable. Make sure the backend is running.");
     } finally {
       setQuizLoading(false);
     }
@@ -502,7 +506,7 @@ export default function CustomerDashboard() {
     if (!input.trim()) return;
 
     setHeroLoading(true);
-    setError(null);
+    setHeroError(null);
     try {
       const response = await ApiService.extractHeroStyle(input);
       setHeroResult(response);
@@ -511,7 +515,7 @@ export default function CustomerDashboard() {
       setLookResult(look);
     } catch (e) {
       console.error(e);
-      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
+      setHeroError("AI is unavailable. Make sure the backend is running.");
     } finally {
       setHeroLoading(false);
     }
@@ -1031,13 +1035,13 @@ export default function CustomerDashboard() {
                       setQuizAnswers(updated);
                       setQuizStep(6);
                       setQuizLoading(true);
-                      setError(null);
+                      setQuizError(null);
                       try {
                         const res = await ApiService.submitStyleDNA(updated);
                         setQuizResult(res);
                       } catch (e) {
                         console.error(e);
-                        setError("AI is unavailable. Please start the backend or check your Gemini API key.");
+                        setQuizError("AI is unavailable. Make sure the backend is running.");
                       } finally {
                         setQuizLoading(false);
                       }
@@ -1060,9 +1064,9 @@ export default function CustomerDashboard() {
             {/* Quiz Result Display */}
             {quizStep === 6 && (
               <div className="space-y-6">
-                {error && (
+                {quizError && (
                   <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
-                    {error}
+                    {quizError}
                   </div>
                 )}
                 {quizLoading ? (
@@ -1331,9 +1335,9 @@ export default function CustomerDashboard() {
               </div>
             )}
 
-            {error && (
+            {heroError && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold animate-fade-in">
-                {error}
+                {heroError}
               </div>
             )}
             {heroLoading ? (
