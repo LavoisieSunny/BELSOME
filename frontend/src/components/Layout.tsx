@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useBelsomeStore } from "../store/belsomeStore";
-import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send } from "lucide-react";
+import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock } from "lucide-react";
 
 export default function AppLayout() {
   const { userRole, changeUserRole } = useBelsomeStore();
@@ -22,6 +22,17 @@ export default function AppLayout() {
     changeUserRole(roleId);
     navigate(path);
   };
+
+  const restrictedPaths = [
+    { path: "/owner", role: "owner", label: "Salon Owner Dashboard" },
+    { path: "/admin", role: "admin", label: "Platform Admin Dashboard" },
+    { path: "/hr", role: "hr", label: "HR Manager Dashboard" },
+    { path: "/stylist", role: "stylist", label: "Stylist Dashboard" },
+    { path: "/vendor", role: "vendor", label: "Vendor Dashboard" },
+  ];
+
+  const currentRestricted = restrictedPaths.find(p => location.pathname.startsWith(p.path));
+  const isAuthorized = !currentRestricted || userRole === currentRestricted.role;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans relative overflow-x-hidden">
@@ -92,7 +103,7 @@ export default function AppLayout() {
 
       {/* Main Outlet */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 z-20">
-        <Outlet />
+        {isAuthorized ? <Outlet /> : <DashboardLoginGate required={currentRestricted!} />}
       </main>
 
       {/* Footer */}
@@ -306,6 +317,72 @@ function WhatsAppBot({ onClose }: { onClose: () => void }) {
         >
           <Send className="w-3.5 h-3.5" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+// RESTRICTED DASHBOARDS LOGIN/ACCESS GATE
+function DashboardLoginGate({ required }: { required: { path: string; role: string; label: string } }) {
+  const { changeUserRole } = useBelsomeStore();
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctPin = "1234";
+    const correctPass = `${required.role}123`;
+    
+    if (pin === correctPin || pin.toLowerCase() === correctPass) {
+      changeUserRole(required.role);
+      setError(null);
+    } else {
+      setError("Invalid access code. Please check your credentials or try '1234'.");
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto my-12 p-8 rounded-2xl border border-slate-200 bg-white shadow-xl space-y-6 animate-fade-in">
+      <div className="text-center space-y-2">
+        <div className="w-16 h-16 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center mx-auto shadow-sm">
+          <Lock className="w-8 h-8 text-brand-primary animate-pulse" />
+        </div>
+        <h3 className="font-display font-bold text-xl text-slate-900">Restricted Access Control</h3>
+        <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+          The BELSOME security controller blocked unauthorized entry to the <strong className="text-slate-800">{required.label}</strong>.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-mono text-purple-700 font-bold uppercase tracking-wider block">Enter Access PIN / Passcode</label>
+          <input
+            type="password"
+            required
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="E.g., 1234 or owner123"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 text-center tracking-widest placeholder-slate-400 focus:outline-none focus:border-brand-primary focus:bg-white transition-all shadow-inner"
+          />
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold text-center animate-shake">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 shadow-md shadow-brand-primary/10 transition-all active:scale-[0.98]"
+        >
+          Authenticate Session
+        </button>
+      </form>
+
+      <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+        <span>SECURITY: HYD-GATEWAY-2FA</span>
+        <span>DEMO PIN: <strong className="text-purple-600">1234</strong></span>
       </div>
     </div>
   );
