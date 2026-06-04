@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-[#F8FAFC] text-[#0F172A];
+    @apply bg-[#F8FAFC] text-[#0F172A] dark:bg-[#090514] dark:text-[#F8FAFC];
   }
 }
 
@@ -153,5 +153,194 @@
 }
 .hud-panel-glow {
   box-shadow: 0 0 25px rgba(34, 197, 94, 0.2), inset 0 0 15px rgba(34, 197, 94, 0.1);
+}
+
+/* ==========================================
+   BELSOME PREMIUM DARK MODE GLOBAL MAPPINGS
+   ========================================== */
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar-track {
+  background: #090514;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #20133c;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #8b5cf6;
+}
+
+/* Glassmorphism panels in dark mode */
+.dark .glass-panel {
+  background: rgba(21, 14, 40, 0.85); /* Rich deep purple glass */
+  border-color: rgba(139, 92, 246, 0.15) !important; /* Soft violet border */
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+}
+
+.dark .glass-panel-hover:hover {
+  background: rgba(26, 17, 50, 0.95);
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 15px 35px -10px rgba(139, 92, 246, 0.15);
+}
+
+/* Card Backgrounds */
+.dark .bg-white {
+  background-color: #0f0a1c !important; /* Deep violet-black surface */
+  color: #f1f5f9;
+}
+
+.dark .bg-slate-50 {
+  background-color: #150e28 !important; /* Lighter violet-dark card wells */
+}
+
+.dark .bg-slate-100 {
+  background-color: #1a1133 !important;
+}
+
+/* Translucent Slate backgrounds */
+.dark .bg-slate-50\/30 {
+  background-color: rgba(21, 14, 40, 0.3) !important;
+}
+
+.dark .bg-slate-50\/50 {
+  background-color: rgba(21, 14, 40, 0.5) !important;
+}
+
+.dark .bg-purple-50\/50 {
+  background-color: rgba(139, 92, 246, 0.08) !important;
+}
+
+.dark .bg-pink-50\/30 {
+  background-color: rgba(219, 39, 119, 0.08) !important;
+}
+
+.dark .bg-pink-50\/50 {
+  background-color: rgba(219, 39, 119, 0.1) !important;
+}
+
+.dark .bg-slate-50\/20 {
+  background-color: rgba(21, 14, 40, 0.2) !important;
+}
+
+/* Border color overrides */
+.dark .border-slate-200, 
+.dark .border-slate-200\/60,
+.dark .border-slate-200\/80,
+.dark .border-slate-100 {
+  border-color: #251846 !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #251846 !important;
+}
+
+/* Text color overrides */
+.dark .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-650 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+.dark .text-slate-955 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-955 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-755 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-750 {
+  color: #e2e8f0 !important;
+}
+
+/* Interactive elements */
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1e153a !important;
+}
+
+.dark .hover\:border-slate-300:hover {
+  border-color: #3b286c !important;
+}
+
+.dark .hover\:border-slate-350:hover {
+  border-color: #4c328c !important;
+}
+
+/* Input Fields and Select Dropdowns */
+.dark input[type="text"],
+.dark input[type="password"],
+.dark input[type="date"],
+.dark input[type="number"],
+.dark select,
+.dark textarea {
+  background-color: #130c25 !important;
+  color: #f1f5f9 !important;
+  border-color: #2e1d53 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #4b5563 !important;
+}
+
+/* Specific buttons toggling */
+.dark button.bg-slate-50 {
+  background-color: #1a1133 !important;
+}
+
+.dark button.bg-slate-55, .dark button.bg-slate-100 {
+  background-color: #211640 !important;
+  color: #cbd5e1 !important;
+  border-color: #31215c !important;
+}
+
+.dark button.bg-slate-100:hover {
+  background-color: #2b1d54 !important;
+}
+
+.dark button.bg-slate-55:hover {
+  background-color: #2b1d54 !important;
+}
+
+.dark button.bg-slate-50:hover {
+  background-color: #20153d !important;
+}
+
+.dark .bg-slate-100\/80 {
+  background-color: rgba(33, 22, 64, 0.8) !important;
+}
+
+/* Custom calendar style fix */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 

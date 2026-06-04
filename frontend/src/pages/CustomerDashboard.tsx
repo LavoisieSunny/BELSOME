@@ -3,7 +3,7 @@ import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
 import { 
   MapPin, ShoppingBag, Timer, CheckCircle, RefreshCcw, ShieldCheck, Scissors, Sliders,
-  Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download
+  Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download, Share2, Copy, Check
 } from "lucide-react";
 
 interface StyleItem {
@@ -164,7 +164,7 @@ const getCelebrityImage = (name: string, inputLink?: string) => {
 };
 
 export default function CustomerDashboard() {
-  const { salons, stylists, services, appointments, addAppointment, selectedPreferences, togglePreference } = useBelsomeStore();
+  const { salons, stylists, services, appointments, addAppointment, selectedPreferences, togglePreference, addToast } = useBelsomeStore();
   const [activeTab, setActiveTab] = useState<"book" | "quiz" | "canvas" | "hero" | "express" | "portfolios">("book");
 
   // Interactive Styling Canvas State
@@ -272,6 +272,7 @@ export default function CustomerDashboard() {
     setScanMessage("Uploading portrait photo...");
     setAvatarScanResult(null);
     setError(null);
+    addToast("📸 Selfie uploaded! Running AI facial geometry scan...", "info");
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -315,9 +316,11 @@ export default function CustomerDashboard() {
           setAvatarScanResult(
             `AI Vision Scan Complete: Detected ${result.faceShape} face shape (Confidence: ${result.confidence || 95}%)`
           );
+          addToast(`✨ Selfie Scan Complete: Detected ${result.faceShape} face shape!`, "success");
         } catch (err: any) {
           console.error("Selfie analysis failed:", err);
           setAvatarScanResult(`Failed to analyze selfie: ${err.message || err}`);
+          addToast("❌ Selfie analysis failed.", "error");
         } finally {
           setAvatarScanning(false);
           setScanMessage("");
@@ -395,6 +398,59 @@ export default function CustomerDashboard() {
   const [bookingTime, setBookingTime] = useState("11:30 AM");
   const [confirmedBooking, setConfirmedBooking] = useState<any>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // AI WhatsApp Share Message State
+  const [shareMessage, setShareMessage] = useState("");
+  const [retentionHook, setRetentionHook] = useState("");
+  const [shareLoading, setShareLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [passRefId, setPassRefId] = useState("");
+
+  React.useEffect(() => {
+    if (!confirmedBooking) {
+      setShareMessage("");
+      setRetentionHook("");
+      setPassRefId("");
+      return;
+    }
+    
+    let active = true;
+    setShareLoading(true);
+
+    const formattedDate = (confirmedBooking.date || "").replace(/-/g, "");
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    setPassRefId(`BEL-${formattedDate}-${randomSuffix}`);
+    
+    ApiService.generateShareMessage({
+      customerName: confirmedBooking.customerName,
+      serviceName: confirmedBooking.serviceName,
+      stylistName: confirmedBooking.stylistName,
+      salonName: confirmedBooking.salonName,
+      date: confirmedBooking.date,
+      timeSlot: confirmedBooking.timeSlot,
+      finalPrice: confirmedBooking.finalPrice
+    }).then((res) => {
+      if (active) {
+        setShareMessage(res.shareMessage);
+        setRetentionHook(res.retentionHook);
+      }
+    }).catch((err) => {
+      console.error(err);
+      if (active) {
+        const referralCode = `BELSOME-${Math.floor(1000 + Math.random() * 9000)}`;
+        setShareMessage(`Hey! ✂️ I just booked my next grooming session at *BELSOME (${confirmedBooking.salonName})*! \n\nI'm getting a *${confirmedBooking.serviceName}* styled by the expert *${confirmedBooking.stylistName}* on ${confirmedBooking.date} at ${confirmedBooking.timeSlot}. \n\nWant to upgrade your look too? Use my referral code *${referralCode}* to get *₹200 off* your first booking! ✨ Let's glow up! 🤵🌟`);
+        setRetentionHook("Give ₹200, Get ₹200");
+      }
+    }).finally(() => {
+      if (active) {
+        setShareLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [confirmedBooking]);
 
   // Style DNA Quiz State
   const [quizStep, setQuizStep] = useState(0); // 0 = start, 1-5 = questions, 6 = result
@@ -478,6 +534,7 @@ export default function CustomerDashboard() {
     setTimeout(() => {
       addAppointment(appointmentPayload);
       setConfirmedBooking(appointmentPayload);
+      addToast(`🎉 Appointment confirmed at ${salonObj.name}!`, "success");
       
       // Reset booking form state so dapper user can book again cleanly
       setSelectedSalon(salons[0].id);
@@ -494,13 +551,16 @@ export default function CustomerDashboard() {
   const handleQuizSubmit = async () => {
     setQuizLoading(true);
     setQuizError(null);
+    addToast("🧬 Running AI Style DNA matching...", "info");
     try {
       const dna = await ApiService.submitStyleDNA(quizAnswers);
       setQuizResult(dna);
       setQuizStep(6);
+      addToast("✨ Style DNA Passport generated!", "success");
     } catch (e) {
       console.error(e);
       setQuizError("AI is unavailable. Make sure the backend is running.");
+      addToast("❌ Failed to generate Style DNA.", "error");
     } finally {
       setQuizLoading(false);
     }
@@ -512,15 +572,18 @@ export default function CustomerDashboard() {
 
     setHeroLoading(true);
     setHeroError(null);
+    addToast("🎬 Extracting style from celebrity image...", "info");
     try {
       const response = await ApiService.extractHeroStyle(input);
       setHeroResult(response);
       
       const look = await ApiService.getFullLook(response.celebrityMatch + " " + response.hairstyle);
       setLookResult(look);
+      addToast(`✨ Look matched: ${response.celebrityMatch} - ${response.hairstyle}!`, "success");
     } catch (e) {
       console.error(e);
       setHeroError("AI is unavailable. Make sure the backend is running.");
+      addToast("❌ Style extraction failed.", "error");
     } finally {
       setHeroLoading(false);
     }
@@ -531,6 +594,7 @@ export default function CustomerDashboard() {
     setExpressSlaFailed(false);
     setExpressCoupon("");
     setExpressCountdown(1200);
+    addToast("⏱️ BELSOME 20-Min SLA track activated!", "warning");
 
     const interval = setInterval(() => {
       setExpressCountdown((prev) => {
@@ -550,6 +614,7 @@ export default function CustomerDashboard() {
     setExpressCountdown(0);
     setExpressSlaFailed(true);
     setExpressCoupon("EXPRESSFAIL20");
+    addToast("🚨 SLA breached! ₹200 failure refund coupon generated.", "error");
   };
 
   const downloadLookCard = () => {
@@ -722,42 +787,119 @@ export default function CustomerDashboard() {
             {/* Step 2: Select Stylist */}
             {bookingStep === 2 && (
               <div className="space-y-4">
-                <h4 className="font-semibold text-xs text-purple-700 uppercase tracking-wider font-mono">Select Stylist</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {stylists.map((sty) => (
-                    <div
-                      key={sty.id}
-                      onClick={() => {
-                        setSelectedStylist(sty.id);
-                        setBookingStep(3);
-                      }}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 bg-white ${
-                        selectedStylist === sty.id
-                          ? "bg-purple-50/50 border-brand-primary shadow-sm"
-                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/30"
-                      }`}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 uppercase text-sm shrink-0 border border-slate-200 shadow-inner">
-                        {sty.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex justify-between items-center">
-                          <h5 className="font-bold text-sm text-slate-800 leading-none">{sty.name}</h5>
-                          <span className="text-[10px] bg-purple-50 border border-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-mono font-bold">
-                            AI Exam: {sty.aiScore}%
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 leading-normal font-semibold">{sty.specialty}</p>
-                        <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-400">
-                          <span>Exp: <strong className="text-slate-700">{sty.experience}</strong></span>
-                          <span>•</span>
-                          <span className="text-amber-600 font-bold flex items-center gap-0.5"><Star className="w-3 h-3 fill-amber-500" /> {sty.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/80 shadow-inner">
+                  <div className="space-y-0.5">
+                    <h5 className="font-bold text-xs text-slate-800 dark:text-slate-200">Schedule Date Selector</h5>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Change booking date to check live stylist availability calendars</p>
+                  </div>
+                  <input
+                    type="date"
+                    value={bookingDate}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => {
+                      setBookingDate(e.target.value);
+                      addToast(`📅 Date updated: ${e.target.value}. Checking stylist schedules...`, "info");
+                    }}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none shadow-sm cursor-pointer"
+                  />
                 </div>
-                <button onClick={() => setBookingStep(1)} className="text-xs text-slate-400 hover:text-slate-700 pt-2 block font-semibold">← Back to services</button>
+
+                <h4 className="font-semibold text-xs text-purple-700 dark:text-purple-400 uppercase tracking-wider font-mono">Select Stylist & Slot</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {stylists.map((sty) => {
+                    const stylistAppts = appointments.filter(
+                      (a) => a.stylistId === sty.id && a.date === bookingDate && a.status !== "Cancelled"
+                    );
+                    const bookedSlots = stylistAppts.map((a) => a.timeSlot);
+                    const totalSlots = ["09:00 AM", "11:30 AM", "01:30 PM", "03:00 PM", "05:30 PM", "07:00 PM"];
+                    
+                    let availabilityText = "🟢 6/6 Slots Free";
+                    let availabilityColor = "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border-green-100 dark:border-green-900/40";
+                    
+                    if (bookedSlots.length === totalSlots.length) {
+                      availabilityText = "🔴 Fully Booked";
+                      availabilityColor = "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/40";
+                    } else if (bookedSlots.length > 0) {
+                      availabilityText = `🟡 ${totalSlots.length - bookedSlots.length}/6 Slots Free`;
+                      availabilityColor = "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/40";
+                    }
+
+                    return (
+                      <div
+                        key={sty.id}
+                        className={`p-4 rounded-xl border transition-all flex flex-col gap-3.5 bg-white dark:bg-slate-950 ${
+                          selectedStylist === sty.id
+                            ? "bg-purple-50/50 dark:bg-purple-950/10 border-brand-primary dark:border-purple-600 shadow-sm"
+                            : "border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-50/30 dark:hover:bg-slate-900/30"
+                        }`}
+                      >
+                        <div 
+                          className="flex items-start gap-4 cursor-pointer"
+                          onClick={() => {
+                            setSelectedStylist(sty.id);
+                            setBookingStep(3);
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 uppercase text-sm shrink-0 border border-slate-200 dark:border-slate-700 shadow-inner">
+                            {sty.name.charAt(0)}
+                          </div>
+                          <div className="flex-grow space-y-1">
+                            <div className="flex justify-between items-center">
+                              <h5 className="font-bold text-sm text-slate-800 dark:text-slate-250 leading-none">{sty.name}</h5>
+                              <span className="text-[10px] bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                                AI Exam: {sty.aiScore}%
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal font-semibold">{sty.specialty}</p>
+                            <div className="flex items-center justify-between gap-2 pt-1 text-[10px] text-slate-400">
+                              <div className="flex items-center gap-2">
+                                <span>Exp: <strong className="text-slate-700 dark:text-slate-300">{sty.experience}</strong></span>
+                                <span>•</span>
+                                <span className="text-amber-600 font-bold flex items-center gap-0.5"><Star className="w-3 h-3 fill-amber-500" /> {sty.rating}</span>
+                              </div>
+                              <span className={`text-[8.5px] px-1.5 py-0.5 rounded border font-mono font-bold ${availabilityColor}`}>
+                                {availabilityText}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Availability Time Slot Grid */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+                          <span className="text-[8.5px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase block tracking-wider">
+                            Daily Availability Calendar ({bookingDate})
+                          </span>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {totalSlots.map((slot) => {
+                              const isBooked = bookedSlots.includes(slot);
+                              return (
+                                <button
+                                  key={slot}
+                                  disabled={isBooked}
+                                  onClick={() => {
+                                    setSelectedStylist(sty.id);
+                                    setBookingTime(slot);
+                                    addToast(`⚡ Express Path: Selected ${sty.name} at ${slot}!`, "success");
+                                    setBookingStep(4);
+                                  }}
+                                  className={`py-1.5 rounded-lg border text-center transition-all ${
+                                    isBooked
+                                      ? "bg-slate-50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-850 text-slate-400 dark:text-slate-600 line-through cursor-not-allowed opacity-45"
+                                      : "bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-brand-primary dark:hover:bg-purple-600 hover:text-white dark:hover:text-white hover:border-brand-primary dark:hover:border-purple-600 hover:shadow-sm text-[10px] font-bold"
+                                  }`}
+                                >
+                                  {slot.replace(" ", "\u00A0")}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+                <button onClick={() => setBookingStep(1)} className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 pt-2 block font-semibold">← Back to services</button>
               </div>
             )}
 
@@ -906,24 +1048,268 @@ export default function CustomerDashboard() {
                   Your appointment booking has been registered in our Zustand database and is visible on both the Owner and Stylist dashboards.
                 </p>
 
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs space-y-2 mt-4 shadow-inner">
-                  <div className="flex justify-between"><span className="text-slate-500 font-semibold">Service:</span><strong className="text-slate-800">{confirmedBooking.serviceName}</strong></div>
-                  <div className="flex justify-between"><span className="text-slate-500 font-semibold">Date/Time:</span><strong className="text-slate-800">{confirmedBooking.date} at {confirmedBooking.timeSlot}</strong></div>
-                  <div className="flex justify-between"><span className="text-slate-500 font-semibold">Stylist:</span><strong className="text-slate-800">{confirmedBooking.stylistName}</strong></div>
-                  <div className="flex justify-between"><span className="text-slate-500 font-semibold">SLA Cover:</span><strong className="text-purple-700">20-Minute Express SLA Active</strong></div>
-                  <div className="h-px bg-slate-200 my-2" />
-                  <div className="flex justify-between text-sm"><span className="text-slate-600 font-semibold">Price Paid:</span><strong className="text-slate-900 font-mono">₹{confirmedBooking.finalPrice}</strong></div>
+                {/* BELSOME VIP Boarding Pass Ticket */}
+                <div id="booking-boarding-pass" className="relative bg-slate-950 border border-amber-500/30 rounded-2xl p-6 text-white text-left space-y-6 shadow-2xl overflow-hidden mt-4">
+                  {/* Gold Foil Top Border */}
+                  <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-600" />
+                  
+                  {/* Left & Right Ticket Punch Cutouts */}
+                  <div className="absolute top-[64%] -left-3.5 w-7 h-7 rounded-full bg-slate-50 border-r border-amber-500/20 -translate-y-1/2 z-10" />
+                  <div className="absolute top-[64%] -right-3.5 w-7 h-7 rounded-full bg-slate-50 border-l border-amber-500/20 -translate-y-1/2 z-10" />
+
+                  {/* Header Branding */}
+                  <div className="flex justify-between items-start pb-4 border-b border-slate-800">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest">BELSOME VIP BOARDING PASS</span>
+                      </div>
+                      <h4 className="font-display font-extrabold text-lg text-white">{confirmedBooking.salonName}</h4>
+                    </div>
+                    <span className="text-[8px] bg-amber-500/10 border border-amber-500/35 text-amber-400 font-mono font-bold px-2 py-0.5 rounded">
+                      PRIORITY GATE
+                    </span>
+                  </div>
+
+                  {/* Ticket Details Grid */}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs font-semibold text-slate-350">
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Passenger</span>
+                      <strong className="text-white text-sm">{confirmedBooking.customerName.replace(" (You)", "")}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Crew / Stylist</span>
+                      <strong className="text-amber-355 text-sm">{confirmedBooking.stylistName}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Class / Service</span>
+                      <strong className="text-white text-sm">{confirmedBooking.serviceName}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">SLA Cover</span>
+                      <strong className="text-purple-400 text-sm font-bold">20-Min Express SLA</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Departure Date</span>
+                      <strong className="text-white text-sm font-mono">{confirmedBooking.date}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Boarding Time</span>
+                      <strong className="text-white text-sm font-mono">{confirmedBooking.timeSlot}</strong>
+                    </div>
+                  </div>
+
+                  {/* Dashed Tear Line */}
+                  <div className="border-dashed border-t border-slate-800/80 my-2 pt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    
+                    {/* QR Code and Pricing */}
+                    <div className="space-y-3 flex-grow">
+                      <div>
+                        <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Price Paid (All Inclusive)</span>
+                        <strong className="text-2xl text-white font-mono font-black">₹{confirmedBooking.finalPrice}</strong>
+                      </div>
+                      
+                      {/* Barcode representation */}
+                      <div className="space-y-1">
+                        <div className="flex gap-0.5 items-end h-6 opacity-60">
+                          {[1, 2, 4, 1, 3, 2, 1, 4, 2, 3, 1, 2, 4, 1, 2, 3, 1, 4, 1, 2, 3].map((w, idx) => (
+                            <div key={idx} className="bg-white h-full" style={{ width: `${w}px` }} />
+                          ))}
+                        </div>
+                        <span className="text-[8px] font-mono text-slate-500 block">
+                          REF ID: {passRefId}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* QR Code element */}
+                    <div className="shrink-0 flex flex-col items-center gap-1.5 p-2 bg-white rounded-xl border border-slate-800 shadow-lg">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=09090b&data=${encodeURIComponent(JSON.stringify({
+                          bookingId: `BEL-booking-${Math.floor(100000 + Math.random() * 900000)}`,
+                          client: confirmedBooking.customerName,
+                          service: confirmedBooking.serviceName,
+                          salon: confirmedBooking.salonName,
+                          date: confirmedBooking.date,
+                          time: confirmedBooking.timeSlot,
+                          stylist: confirmedBooking.stylistName,
+                          price: `₹${confirmedBooking.finalPrice}`
+                        }))}`}
+                        alt="Booking QR Code Pass"
+                        className="w-[105px] h-[105px]"
+                      />
+                      <span className="text-[7.5px] font-mono font-extrabold text-slate-800 uppercase tracking-widest">SCAN AT SALON</span>
+                    </div>
+
+                  </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setBookingStep(1);
-                    setConfirmedBooking(null);
-                  }}
-                  className="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold tracking-wider uppercase border border-slate-200 shadow-sm"
-                >
-                  Book Another Service
-                </button>
+                {/* AI WhatsApp Share Panel */}
+                <div className="p-5 bg-gradient-to-br from-purple-50/50 to-pink-50/30 border border-purple-100 rounded-xl text-left space-y-4 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-purple-650 animate-pulse" />
+                      <span className="text-[10px] text-purple-750 font-mono font-bold uppercase tracking-wider">AI Viral Share Hook</span>
+                    </div>
+                    {retentionHook && (
+                      <span className="text-[9px] bg-pink-50 border border-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold">
+                        🎁 {retentionHook}
+                      </span>
+                    )}
+                  </div>
+
+                  {shareLoading ? (
+                    <div className="space-y-3 animate-pulse">
+                      <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-lg p-3 space-y-2 h-[100px]">
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-11/12" />
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-10/12" />
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                      </div>
+                      <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-full" />
+                    </div>
+                  ) : shareMessage ? (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <textarea
+                          readOnly
+                          value={shareMessage}
+                          rows={4}
+                          className="w-full bg-white/85 border border-purple-100 rounded-lg p-3 text-[11px] text-slate-755 font-semibold focus:outline-none focus:border-purple-300 resize-none shadow-inner leading-relaxed"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(shareMessage);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className="absolute bottom-2.5 right-2.5 p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 transition-all flex items-center justify-center shadow-sm"
+                          title="Copy message"
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const encodedText = encodeURIComponent(shareMessage);
+                            window.open(`https://api.whatsapp.com/send?text=${encodedText}`, "_blank");
+                          }}
+                          className="w-full py-2 rounded-lg bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Share2 className="w-3.5 h-3.5" /> Share via WhatsApp
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-2 text-xs text-slate-400 font-semibold">
+                      Failed to load AI share invitation.
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => {
+                      const windowUrl = "about:blank";
+                      const uniqueName = new Date().getTime();
+                      const windowName = "PrintWindow_" + uniqueName;
+                      const printWindow = window.open(windowUrl, windowName, "left=5000,top=5000,width=0,height=0");
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <html>
+                            <head>
+                              <title>BELSOME VIP Booking Pass</title>
+                              <style>
+                                body { background: #fff; margin: 0; padding: 20px; font-family: system-ui, sans-serif; display: flex; justify-content: center; }
+                                #booking-boarding-pass { 
+                                  background: #09090b; color: #fff; border: 1px solid #d97706; padding: 24px; border-radius: 16px; width: 380px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;
+                                }
+                                .flex { display: flex; }
+                                .justify-between { justify-content: space-between; }
+                                .items-start { align-items: flex-start; }
+                                .items-center { align-items: center; }
+                                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+                                .font-mono { font-family: monospace; }
+                                .text-amber-400 { color: #fbbf24; }
+                                .text-amber-300 { color: #fcd34d; }
+                                .text-slate-350 { color: #cbd5e1; }
+                                .text-slate-500 { color: #64748b; }
+                                .border-dashed { border-top: 1.5px dashed #334155; margin-top: 16px; padding-top: 16px; }
+                                .barcode { display: flex; gap: 1px; height: 24px; margin-top: 4px; }
+                                .barcode-line { background: #white; height: 100%; }
+                                .qr-box { padding: 8px; background: #fff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; }
+                                .text-slate-800 { color: #1e293b; }
+                                .h-1 { height: 4px; background: linear-gradient(to right, #d97706, #f59e0b, #d97706); position: absolute; top: 0; left: 0; right: 0; }
+                              </style>
+                            </head>
+                            <body>
+                              <div id="booking-boarding-pass">
+                                <div class="h-1"></div>
+                                <div class="flex justify-between items-start" style="border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px;">
+                                  <div>
+                                    <div class="flex items-center" style="gap: 6px; font-size: 10px; font-weight: bold; color: #fbbf24;">VIP BOARDING PASS</div>
+                                    <h3 style="margin: 4px 0 0 0; font-size: 18px;">${confirmedBooking.salonName}</h3>
+                                  </div>
+                                  <span style="font-size: 8px; background: rgba(245, 158, 11, 0.1); border: 1.5px solid #d97706; padding: 2px 6px; border-radius: 4px; color: #fbbf24; font-weight: bold;">PRIORITY GATE</span>
+                                </div>
+                                <div class="grid" style="font-size: 12px; margin-bottom: 16px;">
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">PASSENGER</span><strong>${confirmedBooking.customerName.replace(" (You)", "")}</strong></div>
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">CREW / STYLIST</span><strong style="color: #fcd34d;">${confirmedBooking.stylistName}</strong></div>
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">CLASS / SERVICE</span><strong>${confirmedBooking.serviceName}</strong></div>
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">SLA COVER</span><strong style="color: #c084fc;">20-Min SLA</strong></div>
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">DEPARTURE DATE</span><strong class="font-mono">${confirmedBooking.date}</strong></div>
+                                  <div><span style="font-size: 8px; color: #64748b; display: block;">BOARDING TIME</span><strong class="font-mono">${confirmedBooking.timeSlot}</strong></div>
+                                </div>
+                                <div class="flex justify-between items-center border-dashed">
+                                  <div>
+                                    <span style="font-size: 8px; color: #64748b; display: block;">PRICE PAID (NET)</span>
+                                    <strong style="font-size: 24px; font-weight: 900;">₹${confirmedBooking.finalPrice}</strong>
+                                    <div style="font-size: 8px; color: #64748b; margin-top: 8px;">REF ID: ${passRefId}</div>
+                                  </div>
+                                  <div class="qr-box">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=09090b&data=${encodeURIComponent(JSON.stringify({
+                                      bookingId: `BEL-booking-${Math.floor(100000 + Math.random() * 900000)}`,
+                                      client: confirmedBooking.customerName,
+                                      service: confirmedBooking.serviceName,
+                                      salon: confirmedBooking.salonName,
+                                      date: confirmedBooking.date,
+                                      time: confirmedBooking.timeSlot,
+                                      stylist: confirmedBooking.stylistName,
+                                      price: `₹${confirmedBooking.finalPrice}`
+                                    }))}" style="width: 100px; height: 100px;" />
+                                    <span style="font-size: 7px; color: #1e293b; font-weight: bold; margin-top: 4px; font-family: monospace;">SCAN AT COUNTER</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <script>
+                                window.onload = function() {
+                                  window.print();
+                                  setTimeout(function() { window.close(); }, 500);
+                                }
+                              </script>
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                      }
+                    }}
+                    className="flex-1 px-5 py-2.5 rounded-lg bg-purple-55 border border-purple-200 text-purple-700 text-xs font-bold tracking-wider uppercase hover:bg-purple-100 shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Print Pass
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setBookingStep(1);
+                      setConfirmedBooking(null);
+                    }}
+                    className="flex-1 px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold tracking-wider uppercase border border-slate-200 shadow-sm"
+                  >
+                    Book Another Service
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1044,12 +1430,15 @@ export default function CustomerDashboard() {
                       setQuizStep(6);
                       setQuizLoading(true);
                       setQuizError(null);
+                      addToast("🧬 Running AI Style DNA matching...", "info");
                       try {
                         const res = await ApiService.submitStyleDNA(updated);
                         setQuizResult(res);
+                        addToast("✨ Style DNA Passport generated!", "success");
                       } catch (e) {
                         console.error(e);
                         setQuizError("AI is unavailable. Make sure the backend is running.");
+                        addToast("❌ Failed to generate Style DNA.", "error");
                       } finally {
                         setQuizLoading(false);
                       }
@@ -1078,9 +1467,54 @@ export default function CustomerDashboard() {
                   </div>
                 )}
                 {quizLoading ? (
-                  <div className="text-center py-12 space-y-4">
-                    <RefreshCcw className="w-8 h-8 text-purple-600 animate-spin mx-auto" />
-                    <p className="text-xs text-slate-400 font-mono font-semibold">Running Style DNA matching algorithm...</p>
+                  <div className="space-y-6 animate-pulse">
+                    <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 space-y-6 shadow-2xl overflow-hidden">
+                      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400/40 via-amber-300/40 to-amber-500/40" />
+                      <div className="space-y-3">
+                        <div className="h-4 bg-amber-950/40 border border-amber-500/10 rounded w-44" />
+                        <div className="h-7 bg-slate-900 rounded w-64" />
+                        <div className="h-4 bg-slate-900 rounded w-48" />
+                      </div>
+                      <div className="space-y-2 border-l-2 border-amber-500/20 pl-3">
+                        <div className="h-3 bg-slate-900 rounded w-full" />
+                        <div className="h-3 bg-slate-900 rounded w-11/12" />
+                        <div className="h-3 bg-slate-900 rounded w-5/6" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 h-24 flex flex-col justify-between">
+                            <div className="h-2.5 bg-slate-800 rounded w-20" />
+                            <div className="h-3.5 bg-slate-850 rounded w-28" />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-4 bg-slate-900/30 border border-slate-800 rounded-xl space-y-2">
+                        <div className="h-3 bg-slate-850 rounded w-28" />
+                        <div className="h-3 bg-slate-850 rounded w-full" />
+                        <div className="h-3 bg-slate-850 rounded w-5/6" />
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-48" />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 space-y-4 flex flex-col justify-between h-40">
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <div className="h-4 bg-slate-250 dark:bg-slate-800 rounded w-24" />
+                                <div className="h-3.5 bg-slate-250 dark:bg-slate-800 rounded w-12" />
+                              </div>
+                              <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+                              <div className="space-y-1.5 pt-1">
+                                <div className="h-2.5 bg-slate-150 dark:bg-slate-855 rounded w-full" />
+                                <div className="h-2.5 bg-slate-150 dark:bg-slate-855 rounded w-5/6" />
+                              </div>
+                            </div>
+                            <div className="h-7 bg-slate-200 dark:bg-slate-800 rounded-lg w-full" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : quizResult ? (
                   <div className="space-y-6">
@@ -1349,9 +1783,78 @@ export default function CustomerDashboard() {
               </div>
             )}
             {heroLoading ? (
-              <div className="text-center py-12 space-y-4">
-                <RefreshCcw className="w-8 h-8 text-purple-600 animate-spin mx-auto" />
-                <p className="text-xs text-slate-400 font-mono font-semibold">AI Vision parsing styling coordinates & matching outfit catalog...</p>
+              <div className="space-y-8 animate-pulse border-t border-slate-100 dark:border-slate-800 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/40 p-4 space-y-4 flex flex-col justify-between h-[340px]">
+                    <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-150 dark:border-slate-855 p-2.5 pb-5 rounded shadow-sm flex flex-col items-center">
+                      <div className="w-full aspect-[4/5] bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="mt-3.5 h-3 bg-slate-250 dark:bg-slate-800 rounded w-24" />
+                    </div>
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between">
+                      <div className="space-y-1">
+                        <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+                        <div className="h-3.5 bg-slate-250 dark:bg-slate-800 rounded w-20" />
+                      </div>
+                      <div className="space-y-1 flex flex-col items-end">
+                        <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+                        <div className="h-3 bg-slate-250 dark:bg-slate-800 rounded w-14" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-6">
+                    <div className="flex justify-between">
+                      <div className="h-5 bg-slate-255 dark:bg-slate-800 rounded w-44" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-8 bg-slate-255 dark:bg-slate-800 rounded w-72" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-48" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/20 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="space-y-1.5">
+                          <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                          <div className="h-4 bg-slate-250 dark:bg-slate-750 rounded w-36" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-px bg-slate-100 dark:bg-slate-800" />
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-1">
+                        <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                        <div className="h-4 bg-slate-250 dark:bg-slate-750 rounded w-28" />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-28" />
+                        <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-36" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+                  <div className="flex justify-between items-center">
+                    <div className="space-y-1">
+                      <div className="h-5 bg-slate-255 dark:bg-slate-800 rounded w-72" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-96" />
+                    </div>
+                    <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-36" />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 space-y-3">
+                        <div className="h-2.5 bg-slate-200 dark:bg-slate-850 rounded w-12" />
+                        <div className="h-4.5 bg-slate-255 dark:bg-slate-800 rounded w-24" />
+                        <div className="h-3 bg-slate-200 dark:bg-slate-850 rounded w-16" />
+                        <div className="h-7 bg-slate-200 dark:bg-slate-800 rounded-lg w-full" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                    <div className="h-3 bg-slate-255 dark:bg-slate-800 rounded w-48" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-855 rounded w-full" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-855 rounded w-11/12" />
+                  </div>
+                </div>
               </div>
             ) : heroResult && lookResult ? (
               <div className="space-y-8 animate-fade-in border-t border-slate-100 pt-4">

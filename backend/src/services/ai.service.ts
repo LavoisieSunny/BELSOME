@@ -672,5 +672,99 @@ export class AIService {
       };
     });
   }
+
+  // 8. Dynamic Pricing Revenue Forecast & Recommendation
+  static async getPricingForecast(peakSurge: number, offPeakDiscount: number): Promise<any> {
+    const prompt = prompts.PRICING_FORECAST_PROMPT
+      .replace("{peakSurge}", peakSurge.toString())
+      .replace("{offPeakDiscount}", offPeakDiscount.toString());
+
+    return this.executeLLM(prompt, () => {
+      const baseRevenue = 154000;
+      
+      // Peak surge attrition factor
+      const attritionFactor = peakSurge > 25 ? Math.max(0.4, 1 - (peakSurge - 25) * 0.06) : 1;
+      const surgeGains = Math.round(baseRevenue * 0.38 * (peakSurge / 100) * attritionFactor);
+
+      // Off-peak volume uplift
+      const volumeUpliftFactor = 1 + (offPeakDiscount * 0.018);
+      const newOffPeakBookingsRatio = 0.20 * volumeUpliftFactor;
+      const offPeakDiscountLoss = Math.round(baseRevenue * 0.20 * (offPeakDiscount / 100) * volumeUpliftFactor);
+      const offPeakVolumeUplift = Math.round(baseRevenue * (newOffPeakBookingsRatio - 0.20));
+
+      const netImpact = surgeGains - offPeakDiscountLoss + offPeakVolumeUplift;
+      const projectedRevenue = baseRevenue + netImpact;
+
+      let surgeStatus = "OPTIMAL";
+      let offPeakStatus = "OPTIMAL";
+      const recs: string[] = [];
+
+      if (peakSurge > 25) {
+        surgeStatus = "TOO_HIGH";
+        recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in Jubilee Hills may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
+      } else if (peakSurge < 15) {
+        surgeStatus = "TOO_LOW";
+        recs.push(`A +${peakSurge}% peak surge is conservative. Weekend occupancy remains at 95%+, meaning you are leaving high-margin revenue on the table. We recommend raising this to at least +15%.`);
+      } else {
+        recs.push(`Your +${peakSurge}% peak hour surge factor is well-calibrated, maximizing weekend yield without triggering negative review sentiment.`);
+      }
+
+      if (offPeakDiscount > 25) {
+        offPeakStatus = "TOO_HIGH";
+        recs.push(`A -${offPeakDiscount}% off-peak discount leads to margin dilution. While it increases occupancy by ${Math.round((volumeUpliftFactor - 1) * 100)}%, the average ticket value drops too low to cover stylist overhead.`);
+      } else if (offPeakDiscount < 15) {
+        offPeakStatus = "TOO_LOW";
+        recs.push(`Your -${offPeakDiscount}% off-peak discount is too low to incentivize mid-week bookings. Raise it to 15-20% to drive more volume during quiet hours.`);
+      } else {
+        recs.push(`Your -${offPeakDiscount}% off-peak discount rate is optimal, successfully shifting low-priority bookings to quiet weekdays.`);
+      }
+
+      return {
+        projectedRevenue,
+        surgeGains,
+        offPeakDiscountLoss,
+        offPeakVolumeUplift,
+        netImpact,
+        recommendationText: recs.join(" "),
+        surgeStatus,
+        offPeakStatus
+      };
+    });
+  }
+
+  // 9. Generate WhatsApp Sharing Message
+  static async getShareMessage(bookingData: {
+    customerName: string;
+    serviceName: string;
+    stylistName: string;
+    salonName: string;
+    date: string;
+    timeSlot: string;
+    finalPrice: number;
+  }): Promise<any> {
+    const prompt = prompts.SHARE_MESSAGE_PROMPT
+      .replace("{customerName}", bookingData.customerName)
+      .replace("{serviceName}", bookingData.serviceName)
+      .replace("{stylistName}", bookingData.stylistName)
+      .replace("{salonName}", bookingData.salonName)
+      .replace("{date}", bookingData.date)
+      .replace("{timeSlot}", bookingData.timeSlot)
+      .replace("{finalPrice}", bookingData.finalPrice.toString());
+
+    return this.executeLLM(prompt, () => {
+      const cleanName = bookingData.customerName.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase();
+      const randomId = Math.floor(1000 + Math.random() * 9000);
+      const referralCode = `${cleanName}${randomId}BELSOME`;
+      const retentionHook = "Give ₹200, Get ₹200";
+
+      const shareMessage = `Hey! ✂️ I just booked my next grooming session at *BELSOME (${bookingData.salonName})*! \n\nI'm getting a *${bookingData.serviceName}* styled by the expert *${bookingData.stylistName}* on ${bookingData.date} at ${bookingData.timeSlot}. \n\nWant to upgrade your look too? Use my referral code *${referralCode}* to get *₹200 off* your first booking! ✨ Let's glow up! 🤵🌟`;
+
+      return {
+        shareMessage,
+        referralCode,
+        retentionHook
+      };
+    });
+  }
 }
 

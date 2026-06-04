@@ -1,13 +1,27 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useBelsomeStore } from "../store/belsomeStore";
-import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock } from "lucide-react";
+import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock, Sun, Moon, CheckCircle, AlertCircle, Info, X } from "lucide-react";
 
 export default function AppLayout() {
-  const { userRole, changeUserRole } = useBelsomeStore();
+  const { userRole, changeUserRole, toasts, removeToast } = useBelsomeStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    const saved = localStorage.getItem("belsome-theme");
+    if (saved === "light" || saved === "dark") return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+
+  React.useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("belsome-theme", theme);
+  }, [theme]);
 
   const roles = [
     { id: "customer", label: "Customer", path: "/customer", icon: User, color: "text-purple-600" },
@@ -35,19 +49,19 @@ export default function AppLayout() {
   const isAuthorized = !currentRestricted || userRole === currentRestricted.role;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#090514] text-[#0F172A] dark:text-[#F8FAFC] flex flex-col font-sans relative overflow-x-hidden">
       {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-secondary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-primary/5 dark:bg-brand-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-secondary/5 dark:bg-brand-secondary/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Top Brand Header */}
-      <header className="glass-panel sticky top-0 z-40 border-b border-slate-200/60 px-6 py-4 flex items-center justify-between">
+      <header className="glass-panel sticky top-0 z-40 border-b border-slate-200/60 dark:border-slate-800/60 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-secondary flex items-center justify-center font-display font-extrabold text-xl tracking-wider text-white shadow-lg shadow-brand-primary/20">
             B
           </div>
           <div>
-            <h1 className="font-display font-black text-xl tracking-tight leading-none bg-gradient-to-r from-slate-900 via-slate-800 to-purple-900 bg-clip-text text-transparent">
+            <h1 className="font-display font-black text-xl tracking-tight leading-none bg-gradient-to-r from-slate-900 via-slate-800 to-purple-900 dark:from-white dark:via-purple-100 dark:to-purple-300 bg-clip-text text-transparent">
               BELSOME
             </h1>
             <p className="text-[10px] text-slate-400 tracking-widest mt-1">Look Better. Feel Better. Belsome.</p>
@@ -60,22 +74,31 @@ export default function AppLayout() {
             onClick={() => navigate("/")}
             className={`px-4 py-1.5 rounded-lg text-sm transition-all border ${
               location.pathname === "/"
-                ? "bg-slate-100 border-slate-200 text-slate-800 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-900"
+                ? "bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-semibold"
+                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             }`}
           >
             Concept Pitch
           </button>
-          <div className="h-4 w-px bg-slate-200" />
-          <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 border border-purple-100 text-purple-700 font-mono font-semibold">
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/60 text-purple-700 dark:text-purple-300 font-mono font-semibold">
             Hyderabad Launch
           </span>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            className="w-9 h-9 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-purple-900/40 flex items-center justify-center text-slate-650 dark:text-amber-400 hover:scale-105 transition-all shadow-sm"
+            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+          >
+            {theme === "light" ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5 animate-pulse-glow" />}
+          </button>
         </div>
       </header>
 
       {/* Role Switching Control Panel */}
-      <div className="bg-white/80 border-b border-slate-200/60 px-6 py-2.5 flex items-center justify-between overflow-x-auto gap-4 scrollbar-none z-30 sticky top-[73px] backdrop-blur-md shadow-sm shadow-slate-100/50">
-        <div className="flex items-center gap-2 text-slate-500 text-xs shrink-0 font-semibold">
+      <div className="bg-white/80 dark:bg-[#0f0a1c]/80 border-b border-slate-200/60 dark:border-slate-800/60 px-6 py-2.5 flex items-center justify-between overflow-x-auto gap-4 scrollbar-none z-30 sticky top-[73px] backdrop-blur-md shadow-sm shadow-slate-100/50 dark:shadow-none">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs shrink-0 font-semibold">
           <Users className="w-4 h-4 text-purple-600" />
           <span>Demo Role switcher:</span>
         </div>
@@ -90,7 +113,7 @@ export default function AppLayout() {
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all border shrink-0 ${
                   isActive
                     ? "bg-gradient-to-r from-brand-primary to-brand-secondary border-none text-white shadow-md shadow-brand-primary/20 scale-105"
-                    : "bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
+                    : "bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : role.color}`} />
@@ -111,6 +134,46 @@ export default function AppLayout() {
         <p>© 2026 BELSOME Grooming Intelligence. Developed for National Startup Competition.</p>
         <p className="font-semibold text-slate-500">Vite • Tailwind CSS • Zustand DB Engine • Centralized LLM Controller</p>
       </footer>
+
+      {/* Toast Notification Container */}
+      <div className="fixed top-[85px] right-6 z-[100] space-y-3 max-w-sm w-full pointer-events-none">
+        {toasts.map((toast) => {
+          let Icon = Info;
+          let colorClasses = "bg-blue-50/90 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-200";
+          
+          if (toast.type === "success") {
+            Icon = CheckCircle;
+            colorClasses = "bg-emerald-50/95 dark:bg-emerald-950/20 border-emerald-250 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-200";
+          } else if (toast.type === "error") {
+            Icon = AlertCircle;
+            colorClasses = "bg-rose-50/95 dark:bg-rose-950/20 border-rose-250 dark:border-rose-900/50 text-rose-800 dark:text-rose-200";
+          } else if (toast.type === "warning") {
+            Icon = AlertCircle;
+            colorClasses = "bg-amber-50/95 dark:bg-amber-950/20 border-amber-250 dark:border-amber-900/50 text-amber-800 dark:text-amber-200";
+          }
+
+          return (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-lg backdrop-blur-md transition-all duration-300 translate-x-0 animate-fade-in ${colorClasses}`}
+              style={{
+                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)"
+              }}
+            >
+              <Icon className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="flex-1 text-xs font-semibold leading-relaxed">
+                {toast.message}
+              </div>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white shrink-0 p-0.5 rounded-md hover:bg-slate-100/10 transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Module 11: WhatsApp Booking Bot Floating Simulator */}
       <div className="fixed bottom-6 right-6 z-50">

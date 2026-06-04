@@ -116,4 +116,44 @@ export class AIController {
       });
     }
   }
+
+  static async pricingForecast(req: Request, res: Response) {
+    try {
+      const { peakSurge, offPeakDiscount } = req.body;
+      if (peakSurge === undefined || offPeakDiscount === undefined) {
+        return res.status(400).json({ error: "Missing required parameters: peakSurge and offPeakDiscount" });
+      }
+      const data = await AIService.getPricingForecast(Number(peakSurge), Number(offPeakDiscount));
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[pricingForecast] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
+
+  static async generateShareMessage(req: Request, res: Response) {
+    try {
+      const { customerName, serviceName, stylistName, salonName, date, timeSlot, finalPrice } = req.body;
+      if (!customerName || !serviceName || !stylistName || !salonName || !date || !timeSlot || finalPrice === undefined) {
+        return res.status(400).json({ error: "Missing required booking details for share message generation" });
+      }
+      const data = await AIService.getShareMessage({
+        customerName,
+        serviceName,
+        stylistName,
+        salonName,
+        date,
+        timeSlot,
+        finalPrice: Number(finalPrice)
+      });
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[generateShareMessage] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
 }

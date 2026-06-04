@@ -2,6 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // Types definition
+export interface Toast {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info" | "warning";
+}
+
 export interface Stylist {
   id: string;
   name: string;
@@ -111,6 +117,7 @@ interface BelsomeState {
   // App-wide preferences
   selectedPreferences: string[];
   userRole: string;
+  toasts: Toast[];
 
   // Actions
   addAppointment: (appointment: Omit<Appointment, "id" | "status">) => void;
@@ -121,6 +128,8 @@ interface BelsomeState {
   updateGlowSettings: (salonId: string, peakSurge: number, offPeakDiscount: number) => void;
   togglePreference: (pref: string) => void;
   changeUserRole: (role: string) => void;
+  addToast: (message: string, type?: Toast["type"]) => void;
+  removeToast: (id: string) => void;
 }
 
 // Helper to generate dynamic look image URLs
@@ -222,6 +231,7 @@ export const useBelsomeStore = create<BelsomeState>()(
 
   selectedPreferences: ["Organic", "Paraben-Free"],
   userRole: "customer", // Default role
+  toasts: [],
 
   // Mutations
   addAppointment: (appointment) => set((state) => {
@@ -273,7 +283,26 @@ export const useBelsomeStore = create<BelsomeState>()(
     return { selectedPreferences: next };
   }),
 
-  changeUserRole: (role) => set({ userRole: role })
+  changeUserRole: (role) => set({ userRole: role }),
+
+  addToast: (message, type = "info") => set((state) => {
+    const id = `toast-${Math.random().toString(36).substring(2, 9)}`;
+    const newToast: Toast = { id, message, type };
+    
+    setTimeout(() => {
+      set((s) => ({
+        toasts: s.toasts.filter((t) => t.id !== id)
+      }));
+    }, 3500);
+
+    return {
+      toasts: [...state.toasts, newToast]
+    };
+  }),
+
+  removeToast: (id) => set((state) => ({
+    toasts: state.toasts.filter((t) => t.id !== id)
+  }))
     }),
     { name: "belsome-store" }
   )

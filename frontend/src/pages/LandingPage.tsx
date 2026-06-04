@@ -291,11 +291,15 @@ export default function LandingPage() {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white border border-slate-200/80 p-4 rounded-xl rounded-tl-none flex items-center gap-2.5 shadow-sm">
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" />
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:0.4s]" />
-                <span className="text-xs text-slate-500 font-mono">Running VOGUE analysis engine...</span>
+              <div className="bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 p-4 rounded-xl rounded-tl-none space-y-2.5 shadow-sm w-72 animate-pulse">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-ping" />
+                  <span className="text-[10px] text-purple-650 dark:text-purple-400 font-mono font-bold uppercase tracking-wider">Vogue AI Engine</span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+                  <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                </div>
               </div>
             </div>
           )}

@@ -350,3 +350,85 @@ Return ONLY this JSON — no markdown, no backticks, no extra text:
   "confidence": 92
 }
 `;
+
+export const PRICING_FORECAST_PROMPT = `
+You are the BELSOME AI Pricing Strategy Consultant for elite salons in Hyderabad.
+Analyze the salon owner's dynamic pricing parameters:
+- Peak Hour Surge Factor: +{peakSurge}%
+- Off-Peak Discount Rate: -{offPeakDiscount}%
+
+We have baseline salon performance data:
+- Base Monthly Revenue: ₹1,54,000
+- Base Occupancy: 62%
+- High-demand slots (weekends, evenings): 38% of total bookings
+- Quiet off-peak slots (Mon-Thu mornings): 20% of total bookings
+
+Based on microeconomic elasticity models for premium grooming services in Hyderabad (Jubilee Hills/Hitech City):
+1. Peak demand price elasticity: Inelastic. A surge of up to 20% does not significantly reduce booking volume, but above 25% causes customer attrition.
+2. Off-peak demand price elasticity: Elastic. Off-peak discounts attract bargain seekers, but discounts above 30% erode margins without driving proportional volume, leading to net revenue loss.
+
+Generate a JSON object containing:
+1. "projectedRevenue": Calculated monthly revenue after surge gains and off-peak discount changes (an integer).
+2. "surgeGains": Incremental revenue from peak surge (an integer).
+3. "offPeakDiscountLoss": Total discount given in quiet hours (an integer).
+4. "offPeakVolumeUplift": Extra revenue from new customers attracted by off-peak discount (an integer).
+5. "netImpact": Net change in monthly revenue compared to baseline (an integer).
+6. "recommendationText": 2-3 sentences of specific, high-end advice about the owner's settings.
+7. "surgeStatus": "OPTIMAL", "TOO_HIGH", or "TOO_LOW".
+8. "offPeakStatus": "OPTIMAL", "TOO_HIGH", or "TOO_LOW".
+
+For surgeStatus:
+- "OPTIMAL" if peakSurge is between 15% and 25%.
+- "TOO_HIGH" if peakSurge > 25% (risk of customer attrition).
+- "TOO_LOW" if peakSurge < 15% (leaving money on the table).
+
+For offPeakStatus:
+- "OPTIMAL" if offPeakDiscount is between 15% and 25%.
+- "TOO_HIGH" if offPeakDiscount > 25% (margin dilution risk).
+- "TOO_LOW" if offPeakDiscount < 15% (insufficient incentive to fill quiet hours).
+
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "projectedRevenue": 165000,
+  "surgeGains": 17500,
+  "offPeakDiscountLoss": 12000,
+  "offPeakVolumeUplift": 5500,
+  "netImpact": 11000,
+  "recommendationText": "...",
+  "surgeStatus": "...",
+  "offPeakStatus": "..."
+}
+`;
+
+export const SHARE_MESSAGE_PROMPT = `
+You are the BELSOME AI Marketing & Loyalty Coordinator.
+Generate an engaging, shareable WhatsApp message for a client who just booked a luxury grooming appointment in Hyderabad.
+
+Appointment Details:
+- Customer Name: {customerName}
+- Service Booked: {serviceName}
+- Stylist: {stylistName}
+- Salon Studio: {salonName}
+- Scheduled Date: {date}
+- Time Slot: {timeSlot}
+- Final Price paid: ₹{finalPrice}
+
+Create a personalized message that the customer will be excited to send to their friends or family on WhatsApp.
+Requirements:
+1. Include a strong retention/viral referral hook (e.g., "Use my code to get ₹200 off your first styling, and I get a loyalty reward!").
+2. Sound enthusiastic, premium, and friendly.
+3. Use emojis (like ✂️, 🌟, ✨, 🤵) and WhatsApp text formatting (like *bold* for key details).
+4. Do not mention technical terms like Zustand or Mock DB.
+
+Output a JSON object with:
+1. "shareMessage": The fully formatted WhatsApp text message (using emojis, *bold*, and line breaks).
+2. "referralCode": A generated custom referral code based on the customer name (e.g. "ROH552BELSOME").
+3. "retentionHook": A short tagline summarizing the incentive (e.g., "Give ₹200, Get ₹200").
+
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "shareMessage": "...",
+  "referralCode": "...",
+  "retentionHook": "..."
+}
+`;

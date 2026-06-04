@@ -3,14 +3,16 @@ import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
 import { 
   Award, TrendingUp, DollarSign, Calendar, PackageCheck, AlertCircle, 
-  Settings, CheckCircle2, RefreshCcw, Heart, Send, BarChart2, PlusCircle
+  Settings, CheckCircle2, RefreshCcw, Heart, Send, BarChart2, PlusCircle,
+  Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function OwnerDashboard() {
   const { 
     salons, appointments, vendorProducts, examAttempts, weddingProjects, 
-    updateGlowSettings, addVendorProduct, addExamAttempt, updateWeddingProject 
+    updateGlowSettings, addVendorProduct, addExamAttempt, updateWeddingProject,
+    addToast
   } = useBelsomeStore();
 
   const [activeTab, setActiveTab] = useState<"analytics" | "glow" | "procurement" | "staff" | "bridal">("analytics");
@@ -23,6 +25,48 @@ export default function OwnerDashboard() {
   const [peakSurgeInput, setPeakSurgeInput] = useState(currentSalon.peakSurge);
   const [offPeakInput, setOffPeakInput] = useState(currentSalon.offPeakDiscount);
   const [glowSaved, setGlowSaved] = useState(false);
+
+  // AI Pricing Forecast State
+  const [forecast, setForecast] = useState<{
+    projectedRevenue: number;
+    surgeGains: number;
+    offPeakDiscountLoss: number;
+    offPeakVolumeUplift: number;
+    netImpact: number;
+    recommendationText: string;
+    surgeStatus: "OPTIMAL" | "TOO_HIGH" | "TOO_LOW";
+    offPeakStatus: "OPTIMAL" | "TOO_HIGH" | "TOO_LOW";
+  } | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    setForecastLoading(true);
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const res = await ApiService.getPricingForecast(peakSurgeInput, offPeakInput);
+        if (active) {
+          setForecast(res);
+          setForecastError(null);
+        }
+      } catch (err: any) {
+        console.error(err);
+        if (active) {
+          setForecastError("Failed to load forecast recommendation.");
+        }
+      } finally {
+        if (active) {
+          setForecastLoading(false);
+        }
+      }
+    }, 400); // 400ms debounce
+
+    return () => {
+      active = false;
+      clearTimeout(delayDebounceFn);
+    };
+  }, [peakSurgeInput, offPeakInput]);
 
   // Procurement state
   const [prodName, setProdName] = useState("");
@@ -49,6 +93,7 @@ export default function OwnerDashboard() {
   const handleGlowSave = () => {
     updateGlowSettings(currentSalon.id, peakSurgeInput, offPeakInput);
     setGlowSaved(true);
+    addToast("⚡ Dynamic pricing settings saved successfully!", "success");
     setTimeout(() => setGlowSaved(false), 2000);
   };
 
@@ -58,6 +103,7 @@ export default function OwnerDashboard() {
 
     setProcureLoading(true);
     setProcureError(null);
+    addToast("🧪 Auditing vendor proposal against chemical guidelines...", "info");
     try {
       const response = await ApiService.analyzeProcurement({
         name: prodName,
@@ -83,9 +129,13 @@ export default function OwnerDashboard() {
       });
       setProdName("");
       setProdBrand("");
+      
+      const toastType = response.status === "ACCEPT" ? "success" : response.status === "REVIEW" ? "warning" : "error";
+      addToast(`📋 Proposal audited! Decision: ${response.status} (Safety Score: ${response.score})`, toastType);
     } catch (e) {
       console.error(e);
       setProcureError("AI is unavailable. Make sure the backend is running.");
+      addToast("❌ Failed to analyze vendor proposal.", "error");
     } finally {
       setProcureLoading(false);
     }
@@ -97,6 +147,7 @@ export default function OwnerDashboard() {
 
     setExamLoading(true);
     setExamError(null);
+    addToast("🎓 Running AI behavioral analysis on candidate response...", "info");
     try {
       const response = await ApiService.evaluateBehavioral({
         scenario: examScenario,
@@ -114,9 +165,13 @@ export default function OwnerDashboard() {
       });
       setCandidateName("");
       setCandidateResponse("");
+      
+      const toastType = response.status === "HIRE" ? "success" : response.status === "TRAIN" ? "warning" : "error";
+      addToast(`📝 Evaluation complete! Classification: ${response.status} (Score: ${response.overallScore}%)`, toastType);
     } catch (e) {
       console.error(e);
       setExamError("AI is unavailable. Make sure the backend is running.");
+      addToast("❌ Failed to evaluate candidate response.", "error");
     } finally {
       setExamLoading(false);
     }
@@ -135,6 +190,7 @@ export default function OwnerDashboard() {
       timeline: [...currentWedding.timeline, newEvent]
     };
     updateWeddingProject(updated);
+    addToast(`📅 Added timeline event: "${timelineEvent}" at ${timelineTime}!`, "success");
     setTimelineEvent("");
   };
 
@@ -278,7 +334,7 @@ export default function OwnerDashboard() {
                         y1={150 - ratio * 110}
                         x2="410"
                         y2={150 - ratio * 110}
-                        stroke="#F1F5F9"
+                        className="stroke-slate-100 dark:stroke-slate-800"
                         strokeDasharray="4 4"
                         strokeWidth="1.5"
                       />
@@ -431,62 +487,224 @@ export default function OwnerDashboard() {
 
         {/* Glow Pricing Settings */}
         {activeTab === "glow" && (
-          <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6">
-            <div>
-              <h3 className="font-display font-bold text-lg text-slate-900">Glow Dynamic Pricing Rules</h3>
-              <p className="text-xs text-slate-500 font-semibold">Configure margins, weekend demand surge multipliers, and off-peak discount codes.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Surge */}
-              <div className="space-y-3">
-                <label className="text-xs text-amber-700 font-mono font-bold uppercase block">Peak Hour Surge Factor</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="5"
-                    max="30"
-                    value={peakSurgeInput}
-                    onChange={(e) => setPeakSurgeInput(parseInt(e.target.value))}
-                    className="flex-1 accent-pink-500 bg-slate-200 rounded-lg appearance-none h-1.5"
-                  />
-                  <span className="font-mono text-sm font-bold w-12 text-right">+{peakSurgeInput}%</span>
-                </div>
-                <p className="text-[10px] text-slate-500 leading-normal font-semibold">
-                  Applies automatic pricing surges during weekends (Fridays to Sundays) and evening slots after 5:00 PM.
-                </p>
+          <div className="space-y-6">
+            <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6">
+              <div>
+                <h3 className="font-display font-bold text-lg text-slate-900">Glow Dynamic Pricing Rules</h3>
+                <p className="text-xs text-slate-500 font-semibold">Configure margins, weekend demand surge multipliers, and off-peak discount codes.</p>
               </div>
 
-              {/* Off Peak */}
-              <div className="space-y-3">
-                <label className="text-xs text-green-700 font-mono font-bold uppercase block">Off-Peak Discount Rate</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="10"
-                    max="40"
-                    value={offPeakInput}
-                    onChange={(e) => setOffPeakInput(parseInt(e.target.value))}
-                    className="flex-1 accent-purple-600 bg-slate-200 rounded-lg appearance-none h-1.5"
-                  />
-                  <span className="font-mono text-sm font-bold w-12 text-right">-{offPeakInput}%</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Surge */}
+                <div className="space-y-3">
+                  <label className="text-xs text-amber-700 font-mono font-bold uppercase block">Peak Hour Surge Factor</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="5"
+                      max="30"
+                      value={peakSurgeInput}
+                      onChange={(e) => setPeakSurgeInput(parseInt(e.target.value))}
+                      className="flex-1 accent-pink-500 bg-slate-200 rounded-lg appearance-none h-1.5"
+                    />
+                    <span className="font-mono text-sm font-bold w-12 text-right">+{peakSurgeInput}%</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-normal font-semibold">
+                    Applies automatic pricing surges during weekends (Fridays to Sundays) and evening slots after 5:00 PM.
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-normal font-semibold">
-                  Applies discounts during quiet hours: Mon-Thu between 10:00 AM and 02:00 PM.
-                </p>
+
+                {/* Off Peak */}
+                <div className="space-y-3">
+                  <label className="text-xs text-green-700 font-mono font-bold uppercase block">Off-Peak Discount Rate</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="10"
+                      max="40"
+                      value={offPeakInput}
+                      onChange={(e) => setOffPeakInput(parseInt(e.target.value))}
+                      className="flex-1 accent-purple-600 bg-slate-200 rounded-lg appearance-none h-1.5"
+                    />
+                    <span className="font-mono text-sm font-bold w-12 text-right">-{offPeakInput}%</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-normal font-semibold">
+                    Applies discounts during quiet hours: Mon-Thu between 10:00 AM and 02:00 PM.
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-100" />
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-mono font-bold">Changes immediately adjust Customer Booking prices</span>
+                <button
+                  onClick={handleGlowSave}
+                  className="px-5 py-2.5 rounded-lg bg-brand-secondary text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 shadow-md shadow-brand-secondary/15 transition-all"
+                >
+                  {glowSaved ? "Pricing System Saved!" : "Save Dynamic Settings"}
+                </button>
               </div>
             </div>
 
-            <div className="h-px bg-slate-100" />
+            {/* AI Revenue Forecast Panel */}
+            <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6 relative overflow-hidden">
+              {/* Premium Glow effect background */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-100/30 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-pink-100/20 rounded-full blur-2xl -z-10 pointer-events-none" />
 
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-mono font-bold">Changes immediately adjust Customer Booking prices</span>
-              <button
-                onClick={handleGlowSave}
-                className="px-5 py-2.5 rounded-lg bg-brand-secondary text-white font-bold text-xs uppercase tracking-wider hover:opacity-90 shadow-md shadow-brand-secondary/15 transition-all"
-              >
-                {glowSaved ? "Pricing System Saved!" : "Save Dynamic Settings"}
-              </button>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
+                    <Sparkles className="w-4 h-4 text-purple-600 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-bold text-base text-slate-900">AI Revenue Forecast & Strategy Audit</h4>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase font-mono">BELSOME Pricing Intelligence Engine</p>
+                  </div>
+                </div>
+                {forecastLoading && (
+                  <span className="flex items-center gap-1.5 text-[10px] text-purple-600 font-mono font-bold bg-purple-50 px-2.5 py-1 rounded-full border border-purple-100 animate-pulse">
+                    <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> Recalculating...
+                  </span>
+                )}
+              </div>
+
+              {forecastError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-700 text-xs font-semibold">
+                  {forecastError}
+                </div>
+              )}
+
+              {forecastLoading ? (
+                <div className="space-y-6 animate-pulse">
+                  {/* Stats columns skeleton */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-xl space-y-2 h-24">
+                        <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+                        <div className="h-6 bg-slate-250 dark:bg-slate-750 rounded w-24" />
+                        <div className="h-2.5 bg-slate-200 dark:bg-slate-855 rounded w-20" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Projection Breakdown skeleton */}
+                  <div className="space-y-3">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-36" />
+                    <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 p-4 rounded-xl space-y-4 shadow-inner">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex justify-between">
+                            <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-48" />
+                            <div className="h-3 bg-slate-250 dark:bg-slate-750 rounded w-16" />
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Recommendation block skeleton */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 flex gap-4 h-20">
+                    <div className="h-5 bg-slate-250 dark:bg-slate-750 rounded w-16" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-3 bg-slate-250 dark:bg-slate-800 rounded w-36" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-855 rounded w-full" />
+                    </div>
+                  </div>
+                </div>
+              ) : forecast ? (
+                <div className="space-y-6">
+                  {/* Dynamic Revenue Comparison Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-1 shadow-sm">
+                      <span className="text-[9px] text-slate-400 font-mono font-bold uppercase block">Baseline Revenue</span>
+                      <h5 className="font-mono text-lg font-bold text-slate-500">₹1,54,000</h5>
+                      <span className="text-[10px] text-slate-400 font-semibold">Before dynamic pricing</span>
+                    </div>
+
+                    <div className="p-4 bg-purple-50/50 border border-purple-100/70 rounded-xl space-y-1 shadow-sm relative overflow-hidden">
+                      <span className="text-[9px] text-purple-500 font-mono font-bold uppercase block">Projected Revenue</span>
+                      <h5 className="font-mono text-lg font-extrabold text-purple-700">₹{forecast.projectedRevenue.toLocaleString("en-IN")}</h5>
+                      <span className="text-[10px] text-purple-600 font-semibold block">Estimated monthly billing</span>
+                    </div>
+
+                    <div className={`p-4 border rounded-xl space-y-1 shadow-sm ${
+                      forecast.netImpact >= 0 
+                        ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
+                        : "bg-rose-50 border-rose-100 text-rose-800"
+                    }`}>
+                      <span className="text-[9px] font-mono font-bold uppercase block">Net Impact</span>
+                      <h5 className="font-mono text-lg font-bold flex items-center gap-1">
+                        {forecast.netImpact >= 0 ? "+" : ""}
+                        ₹{forecast.netImpact.toLocaleString("en-IN")}
+                      </h5>
+                      <span className="text-[10px] font-semibold">
+                        {forecast.netImpact >= 0 ? "Revenue Growth" : "Revenue Decline"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Pricing Breakdown Breakdown Chart */}
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wide font-mono">Monthly Projection Breakdown</h5>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3 shadow-inner">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-600 font-semibold">Weekend / Evening Surge Gains:</span>
+                        <span className="font-mono font-bold text-pink-600">+₹{forecast.surgeGains.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-gradient-to-r from-pink-500 to-rose-500 h-full rounded-full" style={{ width: `${Math.min(100, (forecast.surgeGains / 154000) * 100 * 5)}%` }} />
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs pt-1">
+                        <span className="text-slate-600 font-semibold">Off-Peak Quiet Hour Discounts:</span>
+                        <span className="font-mono font-bold text-slate-500">-₹{forecast.offPeakDiscountLoss.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-slate-400 h-full rounded-full" style={{ width: `${Math.min(100, (forecast.offPeakDiscountLoss / 154000) * 100 * 5)}%` }} />
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs pt-1">
+                        <span className="text-slate-600 font-semibold">Off-Peak Volume Customer Acquisition:</span>
+                        <span className="font-mono font-bold text-emerald-600">+₹{forecast.offPeakVolumeUplift.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full" style={{ width: `${Math.min(100, (forecast.offPeakVolumeUplift / 154000) * 100 * 5)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Recommendation Audit Alert */}
+                  <div className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-start shadow-sm transition-all ${
+                    forecast.surgeStatus === "OPTIMAL" && forecast.offPeakStatus === "OPTIMAL"
+                      ? "bg-emerald-50 border-emerald-250 text-emerald-950"
+                      : (forecast.surgeStatus === "TOO_HIGH" || forecast.offPeakStatus === "TOO_HIGH")
+                        ? "bg-rose-50 border-rose-250 text-rose-950"
+                        : "bg-amber-50 border-amber-250 text-amber-950"
+                  }`}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded font-mono font-bold uppercase ${
+                        forecast.surgeStatus === "OPTIMAL" && forecast.offPeakStatus === "OPTIMAL"
+                          ? "bg-emerald-600 text-white"
+                          : (forecast.surgeStatus === "TOO_HIGH" || forecast.offPeakStatus === "TOO_HIGH")
+                            ? "bg-rose-600 text-white"
+                            : "bg-amber-600 text-white"
+                      }`}>
+                        {forecast.surgeStatus === "OPTIMAL" && forecast.offPeakStatus === "OPTIMAL"
+                          ? "Optimized"
+                          : "Audit Alert"
+                      }
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <h6 className="text-xs font-bold font-display uppercase tracking-wider">Dynamic Pricing Recommendations</h6>
+                      <p className="text-xs leading-relaxed font-semibold opacity-90">{forecast.recommendationText}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -557,9 +775,36 @@ export default function OwnerDashboard() {
               )}
 
               {procureLoading && (
-                <div className="p-8 text-center text-xs text-slate-500 font-mono font-semibold flex items-center justify-center gap-2">
-                  <RefreshCcw className="w-4 h-4 animate-spin text-purple-600" />
-                  Running AI chemical checklist audit...
+                <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 space-y-4 shadow-inner animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                      <div className="h-5 bg-slate-250 dark:bg-slate-750 rounded w-28" />
+                    </div>
+                    <div className="space-y-2 flex flex-col items-end">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                      <div className="h-4 bg-slate-250 dark:bg-slate-750 rounded w-16" />
+                    </div>
+                  </div>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-28" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded space-y-2 shadow-sm">
+                    <div className="h-2.5 bg-slate-250 dark:bg-slate-855 rounded w-28" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-11/12" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-4/5" />
+                  </div>
                 </div>
               )}
 
@@ -721,9 +966,35 @@ export default function OwnerDashboard() {
               )}
 
               {examLoading && (
-                <div className="p-8 text-center text-xs text-slate-550 font-mono font-semibold flex items-center justify-center gap-2">
-                  <RefreshCcw className="w-4 h-4 animate-spin text-purple-600" />
-                  Running AI vocal linguistic evaluation...
+                <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 space-y-4 shadow-inner animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                      <div className="h-5 bg-slate-250 dark:bg-slate-750 rounded w-28" />
+                    </div>
+                    <div className="space-y-2 flex flex-col items-end">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+                      <div className="h-4 bg-slate-250 dark:bg-slate-750 rounded w-16" />
+                    </div>
+                  </div>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded w-28" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                    </div>
+                  </div>
+                  <div className="p-3.5 bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded space-y-2 shadow-sm">
+                    <div className="h-2.5 bg-slate-250 dark:bg-slate-855 rounded w-28" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+                  </div>
                 </div>
               )}
 

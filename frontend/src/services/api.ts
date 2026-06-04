@@ -372,6 +372,22 @@ export class ApiService {
     return this.request("analyze-selfie", { image, mimeType, filename, clientAnalysis });
   }
 
+  static async getPricingForecast(peakSurge: number, offPeakDiscount: number) {
+    return this.request("pricing-forecast", { peakSurge, offPeakDiscount });
+  }
+
+  static async generateShareMessage(bookingData: {
+    customerName: string;
+    serviceName: string;
+    stylistName: string;
+    salonName: string;
+    date: string;
+    timeSlot: string;
+    finalPrice: number;
+  }) {
+    return this.request("generate-share-message", bookingData);
+  }
+
   // Client-side fallback logic representing the exact matching intelligence of the backend.
   private static async getClientSideMock(endpoint: string, data: any): Promise<any> {
     switch (endpoint) {
@@ -835,6 +851,74 @@ export class ApiService {
             "BELSOME Client Retention Secrets Course",
             "Advanced Verbal Crisis Management Training"
           ]
+        };
+      }
+
+      case "generate-share-message": {
+        const cleanName = data.customerName.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase();
+        const randomId = Math.floor(1000 + Math.random() * 9000);
+        const referralCode = `${cleanName}${randomId}BELSOME`;
+        const retentionHook = "Give ₹200, Get ₹200";
+
+        const shareMessage = `Hey! ✂️ I just booked my next grooming session at *BELSOME (${data.salonName})*! \n\nI'm getting a *${data.serviceName}* styled by the expert *${data.stylistName}* on ${data.date} at ${data.timeSlot}. \n\nWant to upgrade your look too? Use my referral code *${referralCode}* to get *₹200 off* your first booking! ✨ Let's glow up! 🤵🌟`;
+
+        return {
+          shareMessage,
+          referralCode,
+          retentionHook
+        };
+      }
+
+      case "pricing-forecast": {
+        const peakSurge = Number(data.peakSurge);
+        const offPeakDiscount = Number(data.offPeakDiscount);
+        
+        const baseRevenue = 154000;
+        
+        const attritionFactor = peakSurge > 25 ? Math.max(0.4, 1 - (peakSurge - 25) * 0.06) : 1;
+        const surgeGains = Math.round(baseRevenue * 0.38 * (peakSurge / 100) * attritionFactor);
+
+        const volumeUpliftFactor = 1 + (offPeakDiscount * 0.018);
+        const newOffPeakBookingsRatio = 0.20 * volumeUpliftFactor;
+        const offPeakDiscountLoss = Math.round(baseRevenue * 0.20 * (offPeakDiscount / 100) * volumeUpliftFactor);
+        const offPeakVolumeUplift = Math.round(baseRevenue * (newOffPeakBookingsRatio - 0.20));
+
+        const netImpact = surgeGains - offPeakDiscountLoss + offPeakVolumeUplift;
+        const projectedRevenue = baseRevenue + netImpact;
+
+        let surgeStatus = "OPTIMAL";
+        let offPeakStatus = "OPTIMAL";
+        const recs: string[] = [];
+
+        if (peakSurge > 25) {
+          surgeStatus = "TOO_HIGH";
+          recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in Jubilee Hills may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
+        } else if (peakSurge < 15) {
+          surgeStatus = "TOO_LOW";
+          recs.push(`A +${peakSurge}% peak surge is conservative. Weekend occupancy remains at 95%+, meaning you are leaving high-margin revenue on the table. We recommend raising this to at least +15%.`);
+        } else {
+          recs.push(`Your +${peakSurge}% peak hour surge factor is well-calibrated, maximizing weekend yield without triggering negative review sentiment.`);
+        }
+
+        if (offPeakDiscount > 25) {
+          offPeakStatus = "TOO_HIGH";
+          recs.push(`A -${offPeakDiscount}% off-peak discount leads to margin dilution. While it increases occupancy by ${Math.round((volumeUpliftFactor - 1) * 100)}%, the average ticket value drops too low to cover stylist overhead.`);
+        } else if (offPeakDiscount < 15) {
+          offPeakStatus = "TOO_LOW";
+          recs.push(`Your -${offPeakDiscount}% off-peak discount is too low to incentivize mid-week bookings. Raise it to 15-20% to drive more volume during quiet hours.`);
+        } else {
+          recs.push(`Your -${offPeakDiscount}% off-peak discount rate is optimal, successfully shifting low-priority bookings to quiet weekdays.`);
+        }
+
+        return {
+          projectedRevenue,
+          surgeGains,
+          offPeakDiscountLoss,
+          offPeakVolumeUplift,
+          netImpact,
+          recommendationText: recs.join(" "),
+          surgeStatus,
+          offPeakStatus
         };
       }
 
