@@ -395,6 +395,7 @@ export default function CustomerDashboard() {
   );
   const [bookingTime, setBookingTime] = useState("11:30 AM");
   const [confirmedBooking, setConfirmedBooking] = useState<any>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   // Style DNA Quiz State
   const [quizStep, setQuizStep] = useState(0); // 0 = start, 1-5 = questions, 6 = result
@@ -454,6 +455,7 @@ export default function CustomerDashboard() {
   const priceCalculation = calculateDynamicPrice(currentServiceObj.price, bookingDate, bookingTime);
 
   const handleBookingConfirm = () => {
+    setBookingLoading(true);
     const stylistObj = stylists.find((s) => s.id === selectedStylist) || stylists[0];
     const salonObj = salons.find((s) => s.id === selectedSalon) || salons[0];
 
@@ -473,17 +475,21 @@ export default function CustomerDashboard() {
       pricingReason: priceCalculation.reason
     };
 
-    addAppointment(appointmentPayload);
-    setConfirmedBooking(appointmentPayload);
-    
-    // Reset booking form state so dapper user can book again cleanly
-    setSelectedSalon(salons[0].id);
-    setSelectedService(services[0].id);
-    setSelectedStylist(stylists[0].id);
-    setBookingDate(new Date().toISOString().split("T")[0]);
-    setBookingTime("11:30 AM");
+    // Simulate small saving delay for premium UX feel and complete double-click protection
+    setTimeout(() => {
+      addAppointment(appointmentPayload);
+      setConfirmedBooking(appointmentPayload);
+      
+      // Reset booking form state so dapper user can book again cleanly
+      setSelectedSalon(salons[0].id);
+      setSelectedService(services[0].id);
+      setSelectedStylist(stylists[0].id);
+      setBookingDate(new Date().toISOString().split("T")[0]);
+      setBookingTime("11:30 AM");
 
-    setBookingStep(5);
+      setBookingStep(5);
+      setBookingLoading(false);
+    }, 600);
   };
 
   const handleQuizSubmit = async () => {
@@ -766,6 +772,7 @@ export default function CustomerDashboard() {
                     <input
                       type="date"
                       value={bookingDate}
+                      min={new Date().toISOString().split("T")[0]}
                       onChange={(e) => setBookingDate(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
                     />
@@ -879,9 +886,11 @@ export default function CustomerDashboard() {
                   <button onClick={() => setBookingStep(3)} className="text-xs text-slate-400 hover:text-slate-700 font-semibold">← Edit schedule</button>
                   <button
                     onClick={handleBookingConfirm}
-                    className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-bold text-xs tracking-wider uppercase hover:opacity-90 shadow-md shadow-brand-primary/10"
+                    disabled={bookingLoading}
+                    className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-bold text-xs tracking-wider uppercase hover:opacity-90 disabled:opacity-50 shadow-md shadow-brand-primary/10 flex items-center gap-1.5"
                   >
-                    Confirm & Book Now
+                    {bookingLoading && <RefreshCcw className="w-3.5 h-3.5 animate-spin" />}
+                    {bookingLoading ? "Confirming..." : "Confirm & Book Now"}
                   </button>
                 </div>
               </div>
