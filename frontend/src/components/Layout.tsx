@@ -141,16 +141,34 @@ function WhatsAppBot({ onClose }: { onClose: () => void }) {
   const processBotReply = (userMsg: string) => {
     const msg = userMsg.toLowerCase();
 
-    if (step === 0 && (msg.includes("book") || msg.includes("hi") || msg.includes("hello"))) {
-      setStep(1);
-      setChat((prev) => [
-        ...prev,
-        {
-          sender: "bot",
-          text: "Which luxury service would you like to book today?",
-          options: services.map((s) => s.name)
-        }
-      ]);
+    if (step === 0) {
+      if (msg.includes("book") || msg.includes("appointment")) {
+        setStep(1);
+        setChat((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "Which luxury service would you like to book today?",
+            options: services.map((s) => s.name)
+          }
+        ]);
+      } else if (msg.includes("price") || msg.includes("cost")) {
+        setChat((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "Our services start from ₹600 for an Express Trim to ₹4,500 for the Groom's Special Package. Type 'Book Appointment' to get started!"
+          }
+        ]);
+      } else {
+        setChat((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: "Hi! I'm the BELSOME assistant. Type 'Book Appointment' to book a slot, or ask about pricing, services, or our Hyderabad locations."
+          }
+        ]);
+      }
     } else if (step === 1) {
       setStep(2);
       const matched = services.find((s) => s.name.toLowerCase().includes(userMsg.toLowerCase())) || services[0];

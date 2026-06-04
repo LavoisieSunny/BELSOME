@@ -312,16 +312,15 @@ export default function CustomerDashboard() {
             setCanvasHairColor(result.hairColor);
           }
 
-          setAvatarScanning(false);
-          setScanMessage("");
           setAvatarScanResult(
             `AI Vision Scan Complete: Detected ${result.faceShape} face shape (Confidence: ${result.confidence || 95}%)`
           );
         } catch (err: any) {
           console.error("Selfie analysis failed:", err);
+          setAvatarScanResult(`Failed to analyze selfie: ${err.message || err}`);
+        } finally {
           setAvatarScanning(false);
           setScanMessage("");
-          setAvatarScanResult(`Failed to analyze selfie: ${err.message || err}`);
         }
       }
     };
