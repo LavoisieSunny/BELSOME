@@ -5,14 +5,17 @@ export class AIController {
 
   static async concierge(req: Request, res: Response) {
     try {
-      const { query } = req.body;
+      const { query, history } = req.body;
       if (!query) {
         return res.status(400).json({ error: "Missing required parameter: query" });
       }
-      const data = await AIService.getGroomingConcierge(query);
+      const data = await AIService.getGroomingConcierge(query, history);
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[concierge] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 
@@ -25,7 +28,10 @@ export class AIController {
       const data = await AIService.getStyleDNA({ stylePref, hairLength, colorOpen, occasion, lifestyle });
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[styleDNA] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 
@@ -38,7 +44,10 @@ export class AIController {
       const data = await AIService.getBeNextHero(inputData);
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[beNextHero] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 
@@ -51,7 +60,10 @@ export class AIController {
       const data = await AIService.getLookFinder(styleProfile);
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[lookFinder] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 
@@ -66,7 +78,10 @@ export class AIController {
       });
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[procurement] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 
@@ -79,7 +94,26 @@ export class AIController {
       const data = await AIService.evaluateBehavioralExam({ scenario, language, response });
       return res.json(data);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      console.error("[behavioralExam] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
+
+  static async analyzeSelfie(req: Request, res: Response) {
+    try {
+      const { image, mimeType, filename, clientAnalysis } = req.body;
+      if (!image || !mimeType) {
+        return res.status(400).json({ error: "Missing required parameters: image and mimeType" });
+      }
+      const data = await AIService.analyzeSelfie(image, mimeType, filename, clientAnalysis);
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[analyzeSelfie] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
     }
   }
 }

@@ -31,6 +31,24 @@ async function executeLLM(prompt: string, fallbackMock: () => any): Promise<any>
   return fallbackMock();
 }
 
+async function executeLLMVision(
+  prompt: string,
+  imagePart: { inlineData: { data: string; mimeType: string } },
+  fallbackMock: () => any
+): Promise<any> {
+  if (gemini) {
+    const model = gemini.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const result = await model.generateContent([
+      prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text.",
+      imagePart
+    ]);
+    const text = result.response.text();
+    const cleaned = text.replace(/```json|```/gi, "").trim();
+    return JSON.parse(cleaned);
+  }
+  return fallbackMock();
+}
+
 export class AIService {
   
   /**
@@ -40,9 +58,25 @@ export class AIService {
     return executeLLM(prompt, fallbackMock);
   }
 
+  /**
+   * Helper to perform multimodal vision completions using Gemini.
+   */
+  private static async executeLLMVision(
+    prompt: string,
+    imagePart: { inlineData: { data: string; mimeType: string } },
+    fallbackMock: () => any
+  ): Promise<any> {
+    return executeLLMVision(prompt, imagePart, fallbackMock);
+  }
+
   // 1. AI Grooming Concierge
-  static async getGroomingConcierge(query: string): Promise<any> {
-    const prompt = prompts.CONCIERGE_PROMPT.replace("{query}", query);
+  static async getGroomingConcierge(query: string, history?: any[]): Promise<any> {
+    const historyText = (history || [])
+      .map((h: any) => `${h.role === 'user' ? 'Customer' : 'You'}: ${h.text}`)
+      .join('\n');
+    const prompt = prompts.CONCIERGE_PROMPT
+      .replace("{history}", historyText || "None")
+      .replace("{query}", query);
     return this.executeLLM(prompt, () => {
       const q = query.toLowerCase();
       let hair = "Classic Taper Fade";
@@ -564,4 +598,69 @@ export class AIService {
       };
     });
   }
+
+  // 7. Selfie Face Shape Analysis
+  static async analyzeSelfie(image: string, mimeType: string, filename?: string, clientAnalysis?: any): Promise<any> {
+    const imagePart = {
+      inlineData: {
+        data: image,
+        mimeType: mimeType
+      }
+    };
+    
+    // We clean the base64 string if it contains the data prefix
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    let base64Data = image;
+    let cleanMimeType = mimeType;
+    if (matches && matches.length === 3) {
+      cleanMimeType = matches[1];
+      base64Data = matches[2];
+      imagePart.inlineData.data = base64Data;
+      imagePart.inlineData.mimeType = cleanMimeType;
+    }
+
+    return this.executeLLMVision(prompts.SELFIE_PROMPT, imagePart, () => {
+      if (clientAnalysis) {
+        return clientAnalysis;
+      }
+
+      const name = (filename || "oval-medium-pomp-stubble").toLowerCase();
+      let faceShape: "oval" | "round" | "square" | "heart" = "oval";
+      if (name.includes("round")) faceShape = "round";
+      else if (name.includes("square")) faceShape = "square";
+      else if (name.includes("heart")) faceShape = "heart";
+      
+      let skinTone = "#F5C29A";
+      if (name.includes("fair")) skinTone = "#FCD5B5";
+      else if (name.includes("tan") || name.includes("brown")) skinTone = "#E8B085";
+      else if (name.includes("deep") || name.includes("dark")) skinTone = "#D09060";
+
+      let hairStyleId = "classic-pomp";
+      if (name.includes("buzz") || name.includes("crew") || name.includes("flat") || name.includes("crop")) {
+        hairStyleId = "buzz-cut";
+      } else if (name.includes("fade") || name.includes("taper")) {
+        hairStyleId = "taper-fade";
+      } else if (name.includes("quiff") || name.includes("spiky") || name.includes("hawk")) {
+        hairStyleId = "textured-quiff";
+      }
+
+      let beardStyleId = "medium-stubble";
+      if (name.includes("clean") || name.includes("shave")) {
+        beardStyleId = "clean-shave";
+      } else if (name.includes("full") || name.includes("beard")) {
+        beardStyleId = "classic-full";
+      }
+
+      return {
+        faceShape,
+        skinTone,
+        hairStyleId,
+        beardStyleId,
+        accessory: "none",
+        hairColor: "#1A1A1A",
+        confidence: 85
+      };
+    });
+  }
 }
+

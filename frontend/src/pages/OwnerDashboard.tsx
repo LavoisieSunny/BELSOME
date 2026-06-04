@@ -13,6 +13,7 @@ export default function OwnerDashboard() {
   } = useBelsomeStore();
 
   const [activeTab, setActiveTab] = useState<"analytics" | "glow" | "procurement" | "staff" | "bridal">("analytics");
+  const [error, setError] = useState<string | null>(null);
 
   // Glow pricing adjustments
   const currentSalon = salons[0];
@@ -53,6 +54,7 @@ export default function OwnerDashboard() {
     if (!prodName || !prodBrand) return;
 
     setProcureLoading(true);
+    setError(null);
     try {
       const response = await ApiService.analyzeProcurement({
         name: prodName,
@@ -80,6 +82,7 @@ export default function OwnerDashboard() {
       setProdBrand("");
     } catch (e) {
       console.error(e);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setProcureLoading(false);
     }
@@ -90,6 +93,7 @@ export default function OwnerDashboard() {
     if (!candidateName || !candidateResponse) return;
 
     setExamLoading(true);
+    setError(null);
     try {
       const response = await ApiService.evaluateBehavioral({
         scenario: examScenario,
@@ -109,6 +113,7 @@ export default function OwnerDashboard() {
       setCandidateResponse("");
     } catch (e) {
       console.error(e);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setExamLoading(false);
     }
@@ -364,6 +369,12 @@ export default function OwnerDashboard() {
                 </button>
               </form>
 
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+                  {error}
+                </div>
+              )}
+
               {procureLoading && (
                 <div className="p-8 text-center text-xs text-slate-500 font-mono font-semibold flex items-center justify-center gap-2">
                   <RefreshCcw className="w-4 h-4 animate-spin text-purple-600" />
@@ -522,8 +533,14 @@ export default function OwnerDashboard() {
                 </button>
               </form>
 
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+                  {error}
+                </div>
+              )}
+
               {examLoading && (
-                <div className="p-8 text-center text-xs text-slate-500 font-mono font-semibold flex items-center justify-center gap-2">
+                <div className="p-8 text-center text-xs text-slate-550 font-mono font-semibold flex items-center justify-center gap-2">
                   <RefreshCcw className="w-4 h-4 animate-spin text-purple-600" />
                   Running AI vocal linguistic evaluation...
                 </div>

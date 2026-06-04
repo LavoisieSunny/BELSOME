@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 // Types definition
 export interface Stylist {
@@ -125,7 +126,9 @@ interface BelsomeState {
 // Helper to generate dynamic look image URLs
 const imgPlaceholder = (txt: string) => `https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=400&h=400`;
 
-export const useBelsomeStore = create<BelsomeState>((set) => ({
+export const useBelsomeStore = create<BelsomeState>()(
+  persist(
+    (set) => ({
   // Initial Data seed representing Hyderabad marketplace
   salons: [
     { id: "salon-1", name: "BELSOME Signature Studio", location: "Road No. 36, Jubilee Hills, Hyderabad", rating: 4.9, image: imgPlaceholder("Jubilee Hills"), minPrice: 500, maxPrice: 5000, peakSurge: 15, offPeakDiscount: 20 },
@@ -271,4 +274,7 @@ export const useBelsomeStore = create<BelsomeState>((set) => ({
   }),
 
   changeUserRole: (role) => set({ userRole: role })
-}));
+    }),
+    { name: "belsome-store" }
+  )
+);

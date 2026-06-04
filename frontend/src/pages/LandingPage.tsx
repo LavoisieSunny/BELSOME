@@ -14,6 +14,7 @@ export default function LandingPage() {
     { type: "bot", text: "Welcome to BELSOME Concierge. Tell me about your face shape, lifestyle, or upcoming events. E.g., 'I have an oval face and need a clean professional trim for a Board Meeting tomorrow.'" }
   ]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleConciergeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,9 +24,11 @@ export default function LandingPage() {
     setQuery("");
     setChatLog((prev) => [...prev, { type: "user", text: userText }]);
     setLoading(true);
+    setError(null);
 
     try {
-      const response = await ApiService.askConcierge(userText);
+      const history = chatLog.map(c => ({ role: c.type, text: c.text }));
+      const response = await ApiService.askConcierge(userText, history);
       setChatLog((prev) => [
         ...prev,
         {
@@ -36,6 +39,7 @@ export default function LandingPage() {
       ]);
     } catch (err) {
       console.error(err);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setLoading(false);
     }
@@ -44,8 +48,10 @@ export default function LandingPage() {
   const handleChipClick = async (chipText: string) => {
     setChatLog((prev) => [...prev, { type: "user", text: chipText }]);
     setLoading(true);
+    setError(null);
     try {
-      const response = await ApiService.askConcierge(chipText);
+      const history = chatLog.map(c => ({ role: c.type, text: c.text }));
+      const response = await ApiService.askConcierge(chipText, history);
       setChatLog((prev) => [
         ...prev,
         {
@@ -56,6 +62,7 @@ export default function LandingPage() {
       ]);
     } catch (err) {
       console.error(err);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setLoading(false);
     }
@@ -290,6 +297,12 @@ export default function LandingPage() {
                 <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:0.4s]" />
                 <span className="text-xs text-slate-500 font-mono">Running VOGUE analysis engine...</span>
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+              {error}
             </div>
           )}
         </div>

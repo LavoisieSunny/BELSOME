@@ -179,6 +179,7 @@ export default function CustomerDashboard() {
 
   // Uploaded photo scanner state
   const [uploadedImageSrc, setUploadedImageSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Search & Filter state for 50+ styles
   const [hairSearch, setHairSearch] = useState("");
@@ -265,92 +266,64 @@ export default function CustomerDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setUploadedImageSrc(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
-
     setAvatarScanning(true);
     setScanMessage("Uploading portrait photo...");
+    setAvatarScanResult(null);
+    setError(null);
 
-    setTimeout(() => {
-      setScanMessage("Detecting jawline & cheekbone coordinates...");
-      setTimeout(() => {
-        setScanMessage("Calculating chin width aspect ratio...");
-        setTimeout(() => {
-          const name = file.name.toLowerCase();
-          let selected: "oval" | "round" | "square" | "heart" = "oval";
-          if (name.includes("round")) selected = "round";
-          else if (name.includes("square")) selected = "square";
-          else if (name.includes("heart")) selected = "heart";
-          else {
-            const shapes: ("oval" | "round" | "square" | "heart")[] = ["round", "square", "heart", "oval"];
-            selected = shapes[Math.floor(Math.random() * shapes.length)];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      if (event.target?.result) {
+        const dataUrl = event.target.result as string;
+        setUploadedImageSrc(dataUrl);
+
+        try {
+          setScanMessage("Detecting jawline & cheekbone coordinates...");
+          
+          // Make real-time backend API vision request
+          const result = await ApiService.analyzeSelfie(dataUrl, file.type, file.name);
+
+          await new Promise(resolve => setTimeout(resolve, 800));
+          setScanMessage("Calculating chin aspect ratio & face shape...");
+
+          await new Promise(resolve => setTimeout(resolve, 800));
+          setScanMessage("Matching best hair and beard styles...");
+
+          await new Promise(resolve => setTimeout(resolve, 800));
+
+          if (result.faceShape) {
+            setCanvasFaceShape(result.faceShape as any);
           }
-          setCanvasFaceShape(selected);
-
-          if (name.includes("fair")) setCanvasSkinTone("#FCD5B5");
-          else if (name.includes("tan") || name.includes("brown")) setCanvasSkinTone("#E8B085");
-          else if (name.includes("deep") || name.includes("dark")) setCanvasSkinTone("#D09060");
-          else if (name.includes("medium")) setCanvasSkinTone("#F5C29A");
-
-          let matchedHairId = "classic-pomp";
-          if (name.includes("buzz") || name.includes("crew") || name.includes("flat") || name.includes("crop")) {
-            matchedHairId = "buzz-cut";
-          } else if (name.includes("fade") || name.includes("taper")) {
-            matchedHairId = "taper-fade";
-          } else if (name.includes("pomp")) {
-            matchedHairId = "classic-pomp";
-          } else if (name.includes("quiff") || name.includes("spiky") || name.includes("hawk")) {
-            matchedHairId = "textured-quiff";
-          } else if (name.includes("undercut") || name.includes("slick")) {
-            matchedHairId = "textured-undercut";
-          } else if (name.includes("part") || name.includes("comb")) {
-            matchedHairId = "comb-over";
-          } else if (name.includes("long") || name.includes("wave") || name.includes("flow") || name.includes("bun")) {
-            matchedHairId = "long-waves";
-          } else if (name.includes("curly") || name.includes("afro") || name.includes("twist") || name.includes("braid")) {
-            matchedHairId = "curly-crop";
+          if (result.skinTone) {
+            setCanvasSkinTone(result.skinTone);
           }
-          handleHairSelect(matchedHairId);
-
-          let matchedBeardId = "medium-stubble";
-          if (name.includes("clean") || name.includes("shave")) {
-            matchedBeardId = "clean-shave";
-          } else if (name.includes("stubble") || name.includes("shadow") || name.includes("scruff")) {
-            matchedBeardId = "medium-stubble";
-          } else if (name.includes("full") || name.includes("beard") || name.includes("lumberjack") || name.includes("garibaldi")) {
-            matchedBeardId = "classic-full";
-          } else if (name.includes("goatee") || name.includes("anchor") || name.includes("vandyke")) {
-            matchedBeardId = "circle-beard";
-          } else if (name.includes("chop") || name.includes("burns") || name.includes("mutton")) {
-            matchedBeardId = "friendly-chops";
-          } else if (name.includes("mustache") || name.includes("stache") || name.includes("handlebar")) {
-            matchedBeardId = "chevron";
+          if (result.hairStyleId) {
+            handleHairSelect(result.hairStyleId);
           }
-          handleBeardSelect(matchedBeardId);
-
-          if (name.includes("sunglasses") || name.includes("shades")) setCanvasAccessory("sunglasses");
-          else if (name.includes("glasses") || name.includes("spectacles")) setCanvasAccessory("glasses");
-          else if (name.includes("earring")) setCanvasAccessory("earrings");
-          else if (name.includes("turban") || name.includes("safa")) setCanvasAccessory("turban");
-
-          if (name.includes("blonde") || name.includes("gold") || name.includes("bronze")) setCanvasHairColor("#B45309");
-          else if (name.includes("purple") || name.includes("color")) setCanvasHairColor("#7C3AED");
-          else if (name.includes("brown")) setCanvasHairColor("#4A2E1B");
-          else if (name.includes("black")) setCanvasHairColor("#1A1A1A");
+          if (result.beardStyleId) {
+            handleBeardSelect(result.beardStyleId);
+          }
+          if (result.accessory) {
+            setCanvasAccessory(result.accessory as any);
+          }
+          if (result.hairColor) {
+            setCanvasHairColor(result.hairColor);
+          }
 
           setAvatarScanning(false);
           setScanMessage("");
-          setAvatarScanResult(`AI Scan Match: Face shape & matching hair/beard style detected (Confidence: ${Math.round(87 + Math.random() * 10)}%)`);
-          
-          setTimeout(() => setAvatarScanResult(null), 6000);
-        }, 800);
-      }, 800);
-    }, 800);
+          setAvatarScanResult(
+            `AI Vision Scan Complete: Detected ${result.faceShape} face shape (Confidence: ${result.confidence || 95}%)`
+          );
+        } catch (err: any) {
+          console.error("Selfie analysis failed:", err);
+          setAvatarScanning(false);
+          setScanMessage("");
+          setAvatarScanResult(`Failed to analyze selfie: ${err.message || err}`);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const getAIFeedback = () => {
@@ -498,17 +471,27 @@ export default function CustomerDashboard() {
 
     addAppointment(appointmentPayload);
     setConfirmedBooking(appointmentPayload);
+    
+    // Reset booking form state so user can book again cleanly
+    setSelectedSalon(salons[0].id);
+    setSelectedService(services[0].id);
+    setSelectedStylist(stylists[0].id);
+    setBookingDate("2026-06-04");
+    setBookingTime("11:30 AM");
+
     setBookingStep(5);
   };
 
   const handleQuizSubmit = async () => {
     setQuizLoading(true);
+    setError(null);
     try {
       const dna = await ApiService.submitStyleDNA(quizAnswers);
       setQuizResult(dna);
       setQuizStep(6);
     } catch (e) {
       console.error(e);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setQuizLoading(false);
     }
@@ -519,6 +502,7 @@ export default function CustomerDashboard() {
     if (!input.trim()) return;
 
     setHeroLoading(true);
+    setError(null);
     try {
       const response = await ApiService.extractHeroStyle(input);
       setHeroResult(response);
@@ -527,6 +511,7 @@ export default function CustomerDashboard() {
       setLookResult(look);
     } catch (e) {
       console.error(e);
+      setError("AI is unavailable. Please start the backend or check your Gemini API key.");
     } finally {
       setHeroLoading(false);
     }
@@ -1046,11 +1031,13 @@ export default function CustomerDashboard() {
                       setQuizAnswers(updated);
                       setQuizStep(6);
                       setQuizLoading(true);
+                      setError(null);
                       try {
                         const res = await ApiService.submitStyleDNA(updated);
                         setQuizResult(res);
                       } catch (e) {
                         console.error(e);
+                        setError("AI is unavailable. Please start the backend or check your Gemini API key.");
                       } finally {
                         setQuizLoading(false);
                       }
@@ -1073,6 +1060,11 @@ export default function CustomerDashboard() {
             {/* Quiz Result Display */}
             {quizStep === 6 && (
               <div className="space-y-6">
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+                    {error}
+                  </div>
+                )}
                 {quizLoading ? (
                   <div className="text-center py-12 space-y-4">
                     <RefreshCcw className="w-8 h-8 text-purple-600 animate-spin mx-auto" />
@@ -1339,6 +1331,11 @@ export default function CustomerDashboard() {
               </div>
             )}
 
+            {error && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold animate-fade-in">
+                {error}
+              </div>
+            )}
             {heroLoading ? (
               <div className="text-center py-12 space-y-4">
                 <RefreshCcw className="w-8 h-8 text-purple-600 animate-spin mx-auto" />
