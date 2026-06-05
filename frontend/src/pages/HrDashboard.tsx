@@ -3,8 +3,8 @@ import { useBelsomeStore } from "../store/belsomeStore";
 import { Briefcase, CreditCard, Gift, Send, Users, ShieldAlert, CheckCircle } from "lucide-react";
 
 export default function HrDashboard() {
-  const { corporateAccounts, allocateCorporateCredits } = useBelsomeStore();
-  const currentCorp = corporateAccounts[0]; // Logged in as TechCorp Hyderabad
+  const { corporateAccounts, allocateCorporateCredits, activeCity } = useBelsomeStore();
+  const currentCorp = corporateAccounts[0]; // Logged in as local Corporate Account
 
   const [allocAmount, setAllocAmount] = useState(15000);
   const [allocSuccess, setAllocSuccess] = useState(false);
@@ -165,7 +165,7 @@ export default function HrDashboard() {
               </div>
             </div>
             <p className="text-[11px] text-slate-500 font-semibold leading-normal">
-              Wellness credits automatically cover executive grooming sessions at BELSOME partner salons in Gachibowli and Jubilee Hills.
+              Wellness credits automatically cover executive grooming sessions at BELSOME partner salons in {activeCity === "Bangalore" ? "Indiranagar and ORR" : activeCity === "Mumbai" ? "Bandra and Andheri" : activeCity === "Delhi" ? "Connaught Place and Vasant Kunj" : "Gachibowli and Jubilee Hills"}.
             </p>
           </div>
         </div>

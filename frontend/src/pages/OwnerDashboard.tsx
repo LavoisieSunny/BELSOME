@@ -7,18 +7,68 @@ import {
   Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
+import GlowHeatmap from "../components/GlowHeatmap";
 
 export default function OwnerDashboard() {
   const { 
     salons, appointments, vendorProducts, examAttempts, weddingProjects, 
     updateGlowSettings, addVendorProduct, addExamAttempt, updateWeddingProject,
-    addToast
+    addToast, activeCity
   } = useBelsomeStore();
 
-  const [activeTab, setActiveTab] = useState<"analytics" | "glow" | "procurement" | "staff" | "bridal">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "glow" | "heatmap" | "procurement" | "staff" | "bridal">("analytics");
   const [error, setError] = useState<string | null>(null);
   const [procureError, setProcureError] = useState<string | null>(null);
   const [examError, setExamError] = useState<string | null>(null);
+
+  // AI BELSOME Score states
+  const [belsomeScoreData, setBelsomeScoreData] = useState<{
+    score: number;
+    level: string;
+    summary: string;
+    breakdown: {
+      procurement: { score: number; feedback: string };
+      staff: { score: number; feedback: string };
+      bookings: { score: number; feedback: string };
+      rating: { score: number; feedback: string };
+    };
+    recommendations: string[];
+  } | null>(null);
+  const [belsomeLoading, setBelsomeLoading] = useState(false);
+  const [belsomeError, setBelsomeError] = useState<string | null>(null);
+
+  // Live Revenue Ticker states
+  const [liveRevenueOffset, setLiveRevenueOffset] = useState(0);
+  const [revenueFlash, setRevenueFlash] = useState(false);
+
+  // AI Wedding Day Planner States
+  const [planDate, setPlanDate] = useState("2026-11-20");
+  const [planFamilyCount, setPlanFamilyCount] = useState(3);
+  const [planCeremonyType, setPlanCeremonyType] = useState("Traditional Hindu Wedding");
+  
+  const [weddingPlan, setWeddingPlan] = useState<{
+    timeline: { id: string; time: string; event: string; status: string }[];
+    assignments: string[];
+    roster: string[];
+    totalCost: number;
+    b2bPitch: string;
+    isOffline?: boolean;
+  } | null>(null);
+  
+  const [weddingPlanLoading, setWeddingPlanLoading] = useState(false);
+  const [weddingPlanError, setWeddingPlanError] = useState<string | null>(null);
+
+
+  // Inspector & Promotion States
+  const [inspectedSlot, setInspectedSlot] = useState<{
+    dayName: string;
+    hourStr: string;
+    priceMultiplier: number;
+    bookedCount: number;
+    capacity: number;
+  } | null>(null);
+  const [promotedSlots, setPromotedSlots] = useState<string[]>([]);
+  const [promoting, setPromoting] = useState(false);
 
   // Glow pricing adjustments
   const currentSalon = salons[0];
@@ -90,6 +140,99 @@ export default function OwnerDashboard() {
   const [timelineEvent, setTimelineEvent] = useState("");
   const [timelineTime, setTimelineTime] = useState("10:00 AM");
 
+  const fetchBelsomeScore = async () => {
+    setBelsomeLoading(true);
+    setBelsomeError(null);
+    try {
+      const currentSalon = salons[0];
+      const avgProcureScore = vendorProducts.length > 0 
+        ? vendorProducts.reduce((sum, p) => sum + p.score, 0) / vendorProducts.length 
+        : 85;
+      const avgExamScore = examAttempts.length > 0 
+        ? examAttempts.reduce((sum, e) => sum + e.score, 0) / examAttempts.length 
+        : 75;
+      const salonAppts = appointments.filter((a) => a.salonId === currentSalon.id);
+      const totalCount = salonAppts.length;
+      const completedCount = salonAppts.filter(a => a.status === "Completed").length;
+      const upcomingCount = salonAppts.filter(a => a.status === "Upcoming").length;
+      const completionRate = totalCount > 0 
+        ? ((completedCount + upcomingCount) / totalCount) * 100 
+        : 92;
+      const customerRating = currentSalon?.rating || 4.9;
+
+      const res = await ApiService.getBelsomeScore({
+        salonName: currentSalon.name,
+        procurementQuality: avgProcureScore,
+        staffExamScores: avgExamScore,
+        bookingCompletionRate: completionRate,
+        customerRating: customerRating
+      });
+      setBelsomeScoreData(res);
+    } catch (err: any) {
+      console.error(err);
+      setBelsomeError("Failed to calculate trust score.");
+    } finally {
+      setBelsomeLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchBelsomeScore();
+  }, [activeCity, vendorProducts.length, examAttempts.length, appointments.length]);
+
+  React.useEffect(() => {
+    const names = ["Aarav", "Kabir", "Rohan", "Aditya", "Vikram", "Neha", "Priya", "Ananya", "Simran", "Rahul"];
+    const services = ["Haircut & Consultation", "Beard Trim & Grooming", "Slicked Back Undercut", "De-Tan Facial", "Royal Makeover"];
+    const basePrices = [800, 500, 1100, 1200, 15000];
+
+    const interval = setInterval(() => {
+      const idx = Math.floor(Math.random() * services.length);
+      const name = names[Math.floor(Math.random() * names.length)];
+      const service = services[idx];
+      const price = basePrices[idx];
+
+      setLiveRevenueOffset(prev => prev + price);
+      setRevenueFlash(true);
+      setTimeout(() => setRevenueFlash(false), 1000);
+      
+      addToast(`⚡ Live Booking Completed: ${name} — ${service} — ₹${price.toLocaleString("en-IN")}`, "success");
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleGenerateWeddingPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWeddingPlanLoading(true);
+    setWeddingPlanError(null);
+    addToast("👰 Orchestrating AI groom/bride & guest timelines...", "info");
+    
+    try {
+      const res = await ApiService.getWeddingPlanner({
+        date: planDate,
+        familyCount: planFamilyCount,
+        ceremonyType: planCeremonyType
+      });
+      setWeddingPlan(res);
+      addToast("✨ AI Wedding Day Grooming Plan generated successfully!", "success");
+    } catch (err: any) {
+      console.error("Wedding planner API failed, falling back to client mock:", err);
+      try {
+        const res = await ApiService.getClientSideMock("wedding-planner", {
+          date: planDate,
+          familyCount: planFamilyCount,
+          ceremonyType: planCeremonyType
+        });
+        setWeddingPlan({ ...res, isOffline: true });
+        addToast("✨ AI Wedding Day Grooming Plan generated (offline mode)!", "info");
+      } catch (mockErr) {
+        setWeddingPlanError("AI is unavailable. Make sure the backend is running.");
+      }
+    } finally {
+      setWeddingPlanLoading(false);
+    }
+  };
+
   const handleGlowSave = () => {
     updateGlowSettings(currentSalon.id, peakSurgeInput, offPeakInput);
     setGlowSaved(true);
@@ -133,9 +276,37 @@ export default function OwnerDashboard() {
       const toastType = response.status === "ACCEPT" ? "success" : response.status === "REVIEW" ? "warning" : "error";
       addToast(`📋 Proposal audited! Decision: ${response.status} (Safety Score: ${response.score})`, toastType);
     } catch (e) {
-      console.error(e);
-      setProcureError("AI is unavailable. Make sure the backend is running.");
-      addToast("❌ Failed to analyze vendor proposal.", "error");
+      console.error("Procurement API failed, falling back to mock:", e);
+      try {
+        const response = await ApiService.getClientSideMock("procurement", {
+          name: prodName,
+          brand: prodBrand,
+          certifications: prodCerts,
+          cost: prodCost,
+          retail: prodRetail,
+          budget: 5000,
+          prefBrands: "BioGlow, OrganicLife",
+          marginGoal: 50
+        });
+        const offlineResponse = { ...response, isOffline: true };
+        setProcureResult(offlineResponse);
+        addVendorProduct({
+          name: prodName,
+          brand: prodBrand,
+          certifications: prodCerts.split(","),
+          cost: prodCost,
+          retail: prodRetail,
+          margin: parseFloat(((prodRetail - prodCost) / prodRetail * 100).toFixed(1)),
+          score: offlineResponse.score,
+          status: offlineResponse.status,
+          explanation: offlineResponse.explanation
+        });
+        setProdName("");
+        setProdBrand("");
+        addToast(`📋 Proposal audited (offline mode)! Decision: ${offlineResponse.status}`, "info");
+      } catch (fallbackErr) {
+        setProcureError("AI is unavailable. Make sure the backend is running.");
+      }
     } finally {
       setProcureLoading(false);
     }
@@ -169,9 +340,29 @@ export default function OwnerDashboard() {
       const toastType = response.status === "HIRE" ? "success" : response.status === "TRAIN" ? "warning" : "error";
       addToast(`📝 Evaluation complete! Classification: ${response.status} (Score: ${response.overallScore}%)`, toastType);
     } catch (e) {
-      console.error(e);
-      setExamError("AI is unavailable. Make sure the backend is running.");
-      addToast("❌ Failed to evaluate candidate response.", "error");
+      console.error("Behavioral exam API failed, falling back to mock:", e);
+      try {
+        const response = await ApiService.getClientSideMock("behavioral-exam", {
+          scenario: examScenario,
+          language: examLanguage,
+          response: candidateResponse
+        });
+        const offlineResponse = { ...response, isOffline: true };
+        setExamResult(offlineResponse);
+        addExamAttempt({
+          candidateName,
+          language: examLanguage,
+          scenario: examScenario,
+          score: offlineResponse.overallScore,
+          status: offlineResponse.status,
+          feedback: offlineResponse.feedback.empathy + " " + offlineResponse.feedback.resolution
+        });
+        setCandidateName("");
+        setCandidateResponse("");
+        addToast(`📝 Evaluation complete (offline mode)! Classification: ${offlineResponse.status}`, "info");
+      } catch (fallbackErr) {
+        setExamError("AI is unavailable. Make sure the backend is running.");
+      }
     } finally {
       setExamLoading(false);
     }
@@ -244,6 +435,7 @@ export default function OwnerDashboard() {
           {[
             { id: "analytics", label: "Studio Overview", icon: BarChart2 },
             { id: "glow", label: "Glow Pricing Engine", icon: Settings },
+            { id: "heatmap", label: "Demand Heatmap", icon: Calendar },
             { id: "procurement", label: "Procurement Agent", icon: PackageCheck },
             { id: "staff", label: "Staff Exam Portal", icon: Award },
             { id: "bridal", label: "Bridal War Room", icon: Heart }
@@ -271,12 +463,151 @@ export default function OwnerDashboard() {
       <div className="lg:col-span-3">
         {activeTab === "analytics" && (
           <div className="space-y-6">
+            {/* AI BELSOME Trust Score Dashboard Header */}
+            <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm relative overflow-hidden">
+              {/* Decorative premium gradients */}
+              <div className="absolute -right-20 -top-20 w-80 h-80 bg-gradient-to-br from-pink-300/15 to-purple-400/15 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-gradient-to-tr from-blue-300/10 to-indigo-400/10 rounded-full blur-2xl -z-10 pointer-events-none" />
+              
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                {/* Circular Gauge Score display */}
+                <div className="flex flex-col items-center justify-center shrink-0">
+                  <div className="relative w-36 h-36 flex items-center justify-center">
+                    {/* SVG Progress Circle */}
+                    <svg className="w-full h-full transform -rotate-90">
+                      {/* Background track */}
+                      <circle
+                        cx="72"
+                        cy="72"
+                        r="58"
+                        className="stroke-slate-100"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      {/* Foreground indicator */}
+                      <motion.circle
+                        cx="72"
+                        cy="72"
+                        r="58"
+                        className={`stroke-current ${(belsomeScoreData?.score ?? 0) >= 90 ? "text-pink-600" : (belsomeScoreData?.score ?? 0) >= 80 ? "text-purple-600" : (belsomeScoreData?.score ?? 0) >= 65 ? "text-amber-500" : "text-rose-500"}`}
+                        strokeWidth="8"
+                        strokeDasharray={364}
+                        initial={{ strokeDashoffset: 364 }}
+                        animate={{ strokeDashoffset: 364 * (1 - (belsomeScoreData?.score ?? 85) / 100) }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center text-center">
+                      <span className="text-3xl font-extrabold font-mono text-slate-800 leading-none">
+                        {belsomeLoading ? (
+                          <RefreshCcw className="w-6 h-6 text-purple-600 animate-spin" />
+                        ) : (
+                          belsomeScoreData?.score ?? "--"
+                        )}
+                      </span>
+                      <span className="text-[10px] text-slate-450 uppercase font-mono font-bold tracking-wider mt-1.5">BELSOME Score</span>
+                    </div>
+                  </div>
+                  
+                  {/* Trust Level Badge */}
+                  {!belsomeLoading && belsomeScoreData && (
+                    <span className={`mt-3 px-3 py-1 rounded-full text-[9px] font-bold tracking-wider uppercase shadow-sm border ${
+                      belsomeScoreData.level === "Elite Trust" ? "bg-pink-50 border-pink-100 text-pink-700" :
+                      belsomeScoreData.level === "Gold Standard" ? "bg-purple-50 border-purple-100 text-purple-700" :
+                      belsomeScoreData.level === "Accredited Premium" ? "bg-blue-50 border-blue-100 text-blue-800" :
+                      "bg-rose-50 border-rose-100 text-rose-700"
+                    }`}>
+                      ✨ {belsomeScoreData.level}
+                    </span>
+                  )}
+                </div>
+
+                {/* Trust Score breakdown & summary */}
+                <div className="flex-1 space-y-4 w-full text-left">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-850 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-pink-500 animate-pulse" />
+                      Live AI Trust operations Audit
+                    </h2>
+                    <p className="text-xs text-slate-500 font-semibold mt-1">
+                      {belsomeLoading ? "Analyzing operational logs, staff certificates, customer feedback channels..." : belsomeScoreData?.summary}
+                    </p>
+                  </div>
+
+                  {/* Operational breakdown meters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      { key: "procurement", label: "Procurement Quality", icon: PackageCheck, color: "bg-emerald-500", rawVal: `${belsomeScoreData?.breakdown.procurement.score ?? 85}%` },
+                      { key: "staff", label: "Staff Exam Rating", icon: Award, color: "bg-purple-500", rawVal: `${belsomeScoreData?.breakdown.staff.score ?? 75}%` },
+                      { key: "bookings", label: "Booking Completion", icon: Calendar, color: "bg-blue-500", rawVal: `${belsomeScoreData?.breakdown.bookings.score ?? 92}%` },
+                      { key: "rating", label: "Customer Rating", icon: Heart, color: "bg-pink-500", rawVal: `${((belsomeScoreData?.breakdown.rating.score ?? 98) / 20).toFixed(1)}/5.0` }
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const metrics = belsomeScoreData?.breakdown[item.key as "procurement" | "staff" | "bookings" | "rating"];
+                      return (
+                        <div key={item.key} className="space-y-1 p-2 bg-slate-50/50 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors">
+                          <div className="flex justify-between items-center text-xs font-semibold">
+                            <span className="flex items-center gap-1.5 text-slate-700">
+                              <Icon className="w-3.5 h-3.5 text-slate-500" />
+                              {item.label}
+                            </span>
+                            <span className="font-mono text-slate-650">{item.rawVal}</span>
+                          </div>
+                          <div className="relative w-full h-1.5 rounded-full bg-slate-100 overflow-hidden shadow-inner">
+                            <div className={`absolute top-0 bottom-0 left-0 rounded-full ${item.color}`} style={{ width: `${metrics?.score ?? 80}%` }} />
+                          </div>
+                          <p className="text-[9px] text-slate-400 font-medium leading-normal line-clamp-1 hover:line-clamp-none transition-all cursor-help">
+                            {metrics?.feedback}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actionable recommendations & manual recalculate */}
+              {!belsomeLoading && belsomeScoreData && (
+                <>
+                  <div className="h-px bg-slate-100 my-4" />
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                    <div className="space-y-1.5 text-left">
+                      <span className="text-[9px] text-pink-600 font-mono font-bold uppercase block tracking-wider">Priority AI Recommendations</span>
+                      <ul className="space-y-1">
+                        {belsomeScoreData.recommendations.map((rec, idx) => (
+                          <li key={idx} className="text-[11px] text-slate-600 font-semibold flex items-center gap-1.5">
+                            <span className="inline-block w-1 h-1 rounded-full bg-pink-500 shrink-0" />
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={fetchBelsomeScore}
+                      disabled={belsomeLoading}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wide hover:bg-slate-50 flex items-center justify-center gap-2 transition-all self-end"
+                    >
+                      <RefreshCcw className="w-3.5 h-3.5" />
+                      Audited Recalculate
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="glass-panel p-5 rounded-xl border border-slate-200/60 bg-white flex items-center justify-between shadow-sm">
                 <div>
                   <span className="text-[9px] text-slate-400 font-mono uppercase font-bold tracking-wider block">Gross Salon Revenue</span>
-                  <h4 className="font-display font-extrabold text-2xl text-slate-900 mt-1 font-mono">₹{totalRevenue}</h4>
+                  <h4 className={`font-display font-extrabold text-2xl mt-1 font-mono transition-all duration-300 ${
+                    revenueFlash ? "text-green-600 scale-105" : "text-slate-900"
+                  }`}>
+                    ₹{(totalRevenue + liveRevenueOffset).toLocaleString("en-IN")}
+                  </h4>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shadow-sm">
                   <DollarSign className="w-5 h-5 text-green-600" />
@@ -310,7 +641,7 @@ export default function OwnerDashboard() {
               <div className="glass-panel p-6 rounded-2xl border border-slate-200/60 bg-white shadow-sm space-y-4">
                 <div>
                   <h3 className="font-display font-bold text-sm text-slate-800 leading-tight">Weekly Gross Revenue Trend</h3>
-                  <span className="text-[10px] text-slate-400 font-semibold font-mono">HYDERABAD JUBILEE HILLS REGISTRY</span>
+                  <span className="text-[10px] text-slate-400 font-semibold font-mono">{(activeCity === "Bangalore" ? "BANGALORE INDIRANAGAR" : activeCity === "Mumbai" ? "MUMBAI BANDRA" : activeCity === "Delhi" ? "DELHI CONNAUGHT PLACE" : "HYDERABAD JUBILEE HILLS").toUpperCase()} REGISTRY</span>
                 </div>
                 
                 <div className="relative h-44 w-full">
@@ -709,6 +1040,134 @@ export default function OwnerDashboard() {
           </div>
         )}
 
+        {activeTab === "heatmap" && (
+          <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-6">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="font-display font-bold text-lg text-slate-900">Real-time Demand Heatmap & Booking Grid</h3>
+                <p className="text-xs text-slate-550 font-semibold mt-0.5">Click any calendar slot to inspect occupancy rates, analyze pricing tiers, and push promotions to quiet slots.</p>
+              </div>
+              <span className="text-xs font-mono text-pink-700 font-bold bg-pink-50 border border-pink-100 px-2.5 py-0.5 rounded shadow-sm">
+                Owner Dashboard Feed
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+              {/* Heatmap Grid */}
+              <div className="xl:col-span-3">
+                <GlowHeatmap
+                  salonId={currentSalon.id}
+                  highlightSelected={false}
+                  onSlotInspect={(dayName, hourStr, priceMultiplier, bookedCount, capacity) => {
+                    setInspectedSlot({ dayName, hourStr, priceMultiplier, bookedCount, capacity });
+                  }}
+                />
+              </div>
+
+              {/* Inspector Panel */}
+              <div className="xl:col-span-1">
+                {inspectedSlot ? (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4 text-left shadow-sm animate-fade-in">
+                    <div>
+                      <span className="text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Inspecting Slot</span>
+                      <h4 className="font-display font-extrabold text-sm text-slate-800">{inspectedSlot.dayName} at {inspectedSlot.hourStr}</h4>
+                    </div>
+
+                    <div className="space-y-3.5 text-xs text-slate-650 font-semibold">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Rate Multiplier:</span>
+                        <strong className="text-slate-800 font-mono">{inspectedSlot.priceMultiplier}x</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Stylist Occupancy:</span>
+                        <strong className="text-slate-800">{inspectedSlot.bookedCount} / {inspectedSlot.capacity} Stylists</strong>
+                      </div>
+
+                      {/* Occupancy Progress bar */}
+                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-brand-primary h-full rounded-full transition-all"
+                          style={{ width: `${(inspectedSlot.bookedCount / inspectedSlot.capacity) * 105}%` }}
+                        />
+                      </div>
+
+                      {/* Diagnosis */}
+                      <div className="pt-2 border-t border-slate-200">
+                        <span className="text-[8px] font-mono font-bold text-slate-400 uppercase block tracking-wider">Diagnosis</span>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          {inspectedSlot.bookedCount === inspectedSlot.capacity ? (
+                            <span className="text-[10px] text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded font-mono font-bold uppercase">
+                              🔥 Fully Occupied
+                            </span>
+                          ) : inspectedSlot.priceMultiplier > 1.0 ? (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded font-mono font-bold uppercase">
+                              📈 Peak Surge Hour
+                            </span>
+                          ) : inspectedSlot.priceMultiplier < 1.0 ? (
+                            <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded font-mono font-bold uppercase">
+                              ❄️ Quiet Off-Peak Hour
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded font-mono font-bold uppercase">
+                              🟢 Standard Slot
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Promotional SMS block */}
+                      {inspectedSlot.bookedCount < inspectedSlot.capacity && (
+                        <div className="pt-4 border-t border-slate-200 space-y-3">
+                          <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl space-y-1.5">
+                            <h5 className="font-bold text-purple-800 flex items-center gap-1">
+                              <Sparkles className="w-3.5 h-3.5" /> Promotion Available
+                            </h5>
+                            <p className="text-[10px] text-slate-500 leading-normal">
+                              This slot has vacant stylists. Send an automated SMS promotion with an extra 10% off code to boost bookings.
+                            </p>
+                          </div>
+
+                          {promotedSlots.includes(`${inspectedSlot.dayName}-${inspectedSlot.hourStr}`) ? (
+                            <button
+                              disabled
+                              className="w-full py-2.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              <CheckCircle2 className="w-4.5 h-4.5 text-green-600" /> Promoted successfully
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPromoting(true);
+                                addToast("📢 Dispatched SMS campaign requests to BELSOME client directory...", "info");
+                                setTimeout(() => {
+                                  const slotKey = `${inspectedSlot.dayName}-${inspectedSlot.hourStr}`;
+                                  setPromotedSlots([...promotedSlots, slotKey]);
+                                  setPromoting(false);
+                                  addToast(`🎉 Promotion active! SMS coupon BELSOME-${inspectedSlot.dayName.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)} sent to 42 users.`, "success");
+                                }, 800);
+                              }}
+                              className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-[10px] font-bold tracking-wider uppercase hover:opacity-90 transition-all shadow-md shadow-brand-primary/10 flex items-center justify-center gap-1.5"
+                            >
+                              {promoting ? "Sending..." : "📢 Dispatch Promo SMS"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full min-h-[200px] border border-dashed border-slate-250 rounded-xl flex flex-col justify-center items-center p-6 text-center text-slate-400 bg-slate-50/50 shadow-inner select-none">
+                    <Calendar className="w-8 h-8 text-slate-300 stroke-[1.5] mb-2 animate-pulse" />
+                    <span className="text-[11px] font-bold">No Slot Inspected</span>
+                    <p className="text-[9.5px] font-semibold mt-1">Select any cell on the calendar grid to show demand metrics and promotions console.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AI Procurement Agent */}
         {activeTab === "procurement" && (
           <div className="space-y-6">
@@ -814,13 +1273,21 @@ export default function OwnerDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[9px] text-slate-400 block font-mono font-bold uppercase">BELSOME Audit Decision</span>
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold inline-block mt-0.5 ${
-                        procureResult.status === "ACCEPT" ? "bg-green-50 border border-green-200 text-green-700" :
-                        procureResult.status === "REVIEW" ? "bg-amber-50 border border-amber-200 text-amber-700" :
-                        "bg-red-50 border border-red-200 text-red-700"
-                      }`}>
-                        {procureResult.status} (Score: {procureResult.score})
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold inline-block ${
+                          procureResult.status === "ACCEPT" ? "bg-green-50 border border-green-200 text-green-700" :
+                          procureResult.status === "REVIEW" ? "bg-amber-50 border border-amber-200 text-amber-700" :
+                          "bg-red-50 border border-red-200 text-red-700"
+                        }`}>
+                          {procureResult.status} (Score: {procureResult.score})
+                        </span>
+                        {procureResult.isOffline && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Live AI offline — showing demo data
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <span className="text-[9px] text-slate-400 block font-mono font-bold uppercase">Certification Status</span>
@@ -1004,13 +1471,21 @@ export default function OwnerDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[9px] text-slate-400 block font-mono font-bold uppercase">Linguistic Evaluation</span>
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold inline-block mt-0.5 ${
-                        examResult.status === "HIRE" ? "bg-green-50 border border-green-200 text-green-700" :
-                        examResult.status === "TRAIN" ? "bg-amber-50 border border-amber-200 text-amber-700" :
-                        "bg-red-50 border border-red-200 text-red-700"
-                      }`}>
-                        {examResult.status} (Score: {examResult.overallScore})
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold inline-block ${
+                          examResult.status === "HIRE" ? "bg-green-50 border border-green-200 text-green-700" :
+                          examResult.status === "TRAIN" ? "bg-amber-50 border border-amber-200 text-amber-700" :
+                          "bg-red-50 border border-red-200 text-red-700"
+                        }`}>
+                          {examResult.status} (Score: {examResult.overallScore})
+                        </span>
+                        {examResult.isOffline && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Live AI offline — showing demo data
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <span className="text-[9px] text-slate-400 block font-mono font-bold uppercase">Composure Rating</span>
@@ -1065,90 +1540,186 @@ export default function OwnerDashboard() {
 
         {/* Bridal War Room coordination */}
         {activeTab === "bridal" && (
-          <div className="glass-panel p-6 rounded-2xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/20 shadow-sm space-y-6">
-            <div className="flex justify-between items-center border-b border-pink-100 pb-4">
-              <div>
-                <span className="text-[9px] px-2 py-0.5 bg-pink-50 border border-pink-100 text-pink-700 font-mono rounded inline-block mb-1 font-bold">
-                  Bridal War Room Coordinator
-                </span>
-                <h3 className="font-display font-extrabold text-xl text-slate-900">Project: {currentWedding.brideName}'s Gala</h3>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-slate-400 font-semibold block">Wedding Date:</span>
-                <strong className="text-xs text-slate-700 font-bold">{currentWedding.weddingDate}</strong>
+          <div className="space-y-6">
+            {/* Planner Inputs & B2B Pitch Card */}
+            <div className="glass-panel p-6 rounded-2xl border border-pink-150 bg-white shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-pink-100/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="flex flex-col lg:flex-row gap-6 justify-between items-stretch">
+                
+                <div className="flex-1 space-y-4 text-left">
+                  <div>
+                    <span className="text-[9px] px-2 py-0.5 bg-pink-50 border border-pink-100 text-pink-700 font-mono rounded inline-block mb-1.5 font-bold uppercase tracking-wider">
+                      B2B Enterprise Portal
+                    </span>
+                    <h3 className="font-display font-extrabold text-base text-slate-900">AI Wedding Day Grooming & Logistics planner</h3>
+                    <p className="text-xs text-slate-500 font-semibold mt-1">
+                      Instantly balance stylist occupancy, minimize booking gaps, and calculate group treatment quotes for large bridal parties.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleGenerateWeddingPlan} className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-mono text-purple-700 font-bold uppercase">Ceremony Type</label>
+                      <select
+                        value={planCeremonyType}
+                        onChange={(e) => setPlanCeremonyType(e.target.value)}
+                        className="w-full bg-slate-55 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none font-semibold"
+                      >
+                        <option>Traditional Hindu Wedding</option>
+                        <option>Sangeet Gala Party</option>
+                        <option>Cocktail Night</option>
+                        <option>Grand Reception</option>
+                        <option>Christian Nuptials</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-mono text-purple-700 font-bold uppercase">Wedding Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={planDate}
+                        onChange={(e) => setPlanDate(e.target.value)}
+                        className="w-full bg-slate-55 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] font-mono text-purple-700 font-bold uppercase">Guests / Family Count</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="15"
+                        required
+                        value={planFamilyCount}
+                        onChange={(e) => setPlanFamilyCount(parseInt(e.target.value))}
+                        className="w-full bg-slate-55 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={weddingPlanLoading}
+                      className="sm:col-span-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-650 text-white font-extrabold text-xs uppercase tracking-wider hover:opacity-90 shadow-md shadow-pink-600/10 flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                    >
+                      {weddingPlanLoading ? (
+                        <>
+                          <RefreshCcw className="w-4 h-4 animate-spin animate-infinite" /> Orchestrating Timeline...
+                        </>
+                      ) : (
+                        "Generate Coordinated Grooming Timeline"
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {/* B2B Logistics Pitch sidebox */}
+                <div className="w-full lg:w-80 bg-purple-50/50 border border-purple-100 p-4 rounded-xl flex flex-col justify-between shadow-inner text-left">
+                  <div className="space-y-2">
+                    <span className="text-[8px] text-purple-550 font-mono font-bold uppercase tracking-wider block">B2B Yield Optimization Pitch</span>
+                    <h4 className="font-bold text-xs text-purple-800 leading-snug">Maximize High-Ticket Guest Revenue</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                      Bridal bookings represent the highest ticket orders in styling. BELSOME AI load-balances family guest slots around lead bride treatment windows to minimize stylist idle time and capture 100% group service margin.
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t border-purple-100 text-[10px] font-mono text-purple-700 font-bold flex items-center gap-1">
+                    ⚡ 42% Average Margin Lift
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-bold text-xs text-pink-700 font-mono uppercase tracking-wider">Coordinated Timeline Plan</h4>
-                  <span className="text-xs text-slate-400 font-semibold">Live Drag & Drop Simulation</span>
-                </div>
-
-                <div className="space-y-2">
-                  {currentWedding.timeline.map((item) => (
-                    <div key={item.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-purple-700 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100">{item.time}</span>
-                        <span className="text-slate-700 font-semibold">{item.event}</span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        item.status === "Completed" ? "bg-green-50 border border-green-200 text-green-700" :
-                        "bg-amber-50 border border-amber-200 text-amber-700 animate-pulse"
-                      }`}>
-                        {item.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={timelineEvent}
-                    onChange={(e) => setTimelineEvent(e.target.value)}
-                    placeholder="Add wedding scheduler event (e.g. Nail Art Touch-up)"
-                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={timelineTime}
-                    onChange={(e) => setTimelineTime(e.target.value)}
-                    placeholder="Time"
-                    className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center text-slate-900 focus:outline-none"
-                  />
-                  <button
-                    onClick={addBridalTimeline}
-                    className="px-3 rounded-lg bg-pink-600 hover:bg-pink-500 text-white flex items-center justify-center"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* Generated Plan Output */}
+            {weddingPlanError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-xs font-semibold">
+                {weddingPlanError}
               </div>
+            )}
 
-              <div className="md:col-span-1 space-y-4">
-                <h4 className="font-bold text-xs text-pink-700 font-mono uppercase tracking-wider">Vendor Checkout Bundles</h4>
-                <div className="space-y-3">
-                  {currentWedding.bookedVendors.map((v, i) => (
-                    <div key={i} className="p-3 bg-white border border-slate-200 rounded-xl space-y-1 text-xs shadow-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-400 uppercase font-mono font-bold">{v.role}</span>
-                        <span className="text-[9px] text-green-600 font-bold">{v.status}</span>
+            {weddingPlan ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-fade-in text-left">
+                {/* Timeline */}
+                <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4 text-left">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h4 className="font-display font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-pink-600" />
+                      Coordinated Wedding Day Timeline
+                    </h4>
+                    <span className="text-[9px] font-mono bg-green-50 text-green-700 border border-green-100 font-bold px-2 py-0.5 rounded uppercase">
+                      {weddingPlan.isOffline ? "Mock Mode" : "AI Optimized"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3.5 relative pl-4 border-l border-slate-200 ml-2 py-2">
+                    {weddingPlan.timeline.map((evt, idx) => (
+                      <div key={evt.id} className="relative space-y-1">
+                        {/* Bullet point node */}
+                        <span className="absolute -left-[22.5px] top-1.5 w-3 h-3 rounded-full border border-pink-500 bg-white shadow-sm" />
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[9px] text-pink-700 font-bold bg-pink-50 px-2 py-0.5 rounded border border-pink-100 shrink-0">
+                            {evt.time}
+                          </span>
+                          <span className="text-[11px] text-slate-755 font-semibold leading-relaxed">{evt.event}</span>
+                        </div>
                       </div>
-                      <h5 className="font-bold text-slate-800">{v.name}</h5>
-                      <span className="text-pink-600 font-mono font-bold block pt-1">₹{v.cost}</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
 
-                  <div className="h-px bg-slate-200" />
-                  <div className="flex justify-between items-center text-xs font-semibold text-slate-650">
-                    <span>Total Package:</span>
-                    <strong className="text-slate-900 text-sm font-mono font-bold">₹{currentWedding.bookedVendors.reduce((sum, item) => sum + item.cost, 0)}</strong>
+                  {/* B2B Logistics Description */}
+                  <div className="p-4 bg-purple-50/40 border border-purple-100 rounded-xl text-xs text-purple-950 font-semibold leading-relaxed flex gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-600 shrink-0 mt-0.5 animate-pulse" />
+                    <div>
+                      <strong className="block text-[10px] font-mono uppercase tracking-wider mb-1 text-purple-900">AI Logistics Optimization Memo:</strong>
+                      {weddingPlan.b2bPitch}
+                    </div>
+                  </div>
+                </div>
+
+                {/* assignments and roster */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* service assignments */}
+                  <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4 text-left">
+                    <h4 className="font-display font-extrabold text-xs text-slate-800 uppercase tracking-wider">
+                      Family Guest Assignments
+                    </h4>
+                    <div className="space-y-2.5">
+                      {weddingPlan.assignments.map((as, idx) => (
+                        <div key={idx} className="p-3 bg-slate-50 border border-slate-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm font-semibold">
+                          <span className="text-slate-700">{as.split(" - ")[0]}</span>
+                          <strong className="font-mono text-pink-650 shrink-0">{as.split(" - ")[1]}</strong>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-px bg-slate-100" />
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-500">Total Bridal Package:</span>
+                      <span className="text-slate-900 text-sm font-mono font-bold">₹{weddingPlan.totalCost.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+
+                  {/* Stylists roster */}
+                  <div className="glass-panel p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-3 text-left">
+                    <h4 className="font-display font-extrabold text-xs text-slate-800 uppercase tracking-wider">
+                      Deployed Stylist Roster
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {weddingPlan.roster.map((st, idx) => (
+                        <span key={idx} className="px-2.5 py-1 bg-purple-50 border border-purple-100 rounded-lg text-purple-700 text-xs font-bold font-mono">
+                          🧑‍🎨 {st}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl max-w-md mx-auto text-xs text-slate-400 font-semibold space-y-2">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto animate-pulse" />
+                <p>No active wedding grooming plan simulated.</p>
+                <p className="text-[10px]">Enter wedding coordinates above and hit generate to model the logistics flow.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

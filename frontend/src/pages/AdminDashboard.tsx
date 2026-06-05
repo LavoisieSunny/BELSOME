@@ -3,7 +3,7 @@ import { useBelsomeStore } from "../store/belsomeStore";
 import { BarChart, DollarSign, Calendar, Users, ShieldAlert, Download, RefreshCcw } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { appointments, salons, stylists, corporateAccounts } = useBelsomeStore();
+  const { appointments, salons, stylists, corporateAccounts, activeCity } = useBelsomeStore();
   const [exportSuccess, setExportSuccess] = useState(false);
 
   const totalRevenue = appointments.reduce((sum, item) => sum + item.finalPrice, 0);
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
             Global Platform Administrator
           </span>
           <h2 className="font-display font-extrabold text-2xl text-slate-900 leading-none">Platform Command Centre</h2>
-          <p className="text-xs text-slate-500 font-semibold mt-1.5">Aggregated statistics mapping all salons, corporate programs, and AI transactions in Hyderabad.</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1.5">Aggregated statistics mapping all salons, corporate programs, and AI transactions in {activeCity}.</p>
         </div>
         <button
           onClick={handleExportCSV}
@@ -51,7 +51,7 @@ export default function AdminDashboard() {
         <KPIItem title="Aggregate Platform Revenue" val={`₹${totalRevenue}`} label="Platform GTV" icon={DollarSign} color="text-green-600" bg="bg-green-50 border-green-100" />
         <KPIItem title="Aggregate Bookings" val={totalBookings.toString()} label="Total appointments" icon={Calendar} color="text-purple-650" bg="bg-purple-50 border-purple-100" />
         <KPIItem title="Listed Stylists" val={stylists.length.toString()} label="Registry Active" icon={Users} color="text-amber-600" bg="bg-amber-50 border-amber-100" />
-        <KPIItem title="Active Studios" val={salons.length.toString()} label="Hyderabad Launch" icon={ShieldAlert} color="text-teal-600" bg="bg-teal-50 border-teal-100" />
+        <KPIItem title="Active Studios" val={salons.length.toString()} label={`${activeCity} Launch`} icon={ShieldAlert} color="text-teal-600" bg="bg-teal-50 border-teal-100" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

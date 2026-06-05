@@ -432,3 +432,102 @@ Return ONLY this JSON — no markdown, no backticks, no extra text:
   "retentionHook": "..."
 }
 `;
+
+export const BELSOME_SCORE_PROMPT = `
+You are the BELSOME Trust AI Auditor.
+Calculate a comprehensive "BELSOME Score" (0–100) representing the trustworthiness, quality, and performance of the salon studio.
+
+Salon Profile:
+- Salon Name: {salonName}
+- Procurement Quality Average: {procurementQuality}/100
+- Staff Exam Scores Average: {staffExamScores}/100
+- Booking Completion Rate: {bookingCompletionRate}%
+- Customer Rating: {customerRating}/5
+
+Formulate a weighted AI Trust Number (0-100) from these inputs:
+- Procurement Quality (weighted 25%)
+- Staff Exam Scores (weighted 25%)
+- Booking Completion Rate (weighted 25%)
+- Customer Rating (weighted 25%, scaled to 100 by multiplying by 20)
+
+Determine a Trust Level:
+- "Elite Trust" (Score >= 90)
+- "Gold Standard" (Score 80-89)
+- "Accredited Premium" (Score 65-79)
+- "Development Needed" (Score < 65)
+
+Generate a detailed breakdown explaining the performance in each category, along with exactly 3 actionable, premium recommendations tailored specifically to improve their weakest metrics or maintain excellence.
+
+Output a JSON object containing:
+1. "score": Numerical overall trust score (0-100).
+2. "level": The trust level string ("Elite Trust", "Gold Standard", "Accredited Premium", or "Development Needed").
+3. "summary": A 2-sentence executive summary of the salon's operational trust.
+4. "breakdown": An object containing a 1-sentence analytical feedback and score for each:
+   - "procurement": { "score": number, "feedback": string }
+   - "staff": { "score": number, "feedback": string }
+   - "bookings": { "score": number, "feedback": string }
+   - "rating": { "score": number, "feedback": string }
+5. "recommendations": Array of exactly 3 specific, operational recommendations.
+
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "score": 92,
+  "level": "...",
+  "summary": "...",
+  "breakdown": {
+    "procurement": { "score": 85, "feedback": "..." },
+    "staff": { "score": 90, "feedback": "..." },
+    "bookings": { "score": 95, "feedback": "..." },
+    "rating": { "score": 98, "feedback": "..." }
+  },
+  "recommendations": [
+    "...",
+    "...",
+    "..."
+  ]
+}
+`;
+
+export const WEDDING_PLANNER_PROMPT = `
+You are the BELSOME AI Wedding Coordinator.
+Generate a premium, coordinated Grooming Timeline and Plan for a wedding.
+
+Inputs:
+- Date: {date}
+- Number of Family/Guest Members: {familyCount}
+- Ceremony Type: {ceremonyType}
+
+Available Stylists:
+- Vikram Malhotra (Specialty: Master Hair Sculptor & Fade Specialist)
+- Priya Rao (Specialty: Celebrity Groomer & Hair Colorist)
+- Suresh K. (Specialty: Natural Wave Artist & Spa Therapy Specialist)
+
+Generate a coordinated plan for this event. Ensure there is logical sequencing (e.g. skin preparation, hair setups, makeovers, and final touchups).
+Distribute family members across the available stylists reasonably. The bride or groom should be assigned to the lead stylist (e.g. Priya Rao or Vikram Malhotra).
+
+Output a JSON object containing:
+1. "timeline": An array of timeline objects, each with:
+   - "id": A unique string ID (e.g., "evt-1").
+   - "time": Time of the event (e.g., "08:00 AM").
+   - "event": Description of the event/service (e.g., "Bride hair styling and facial prep by Priya Rao").
+   - "status": "Upcoming" or "Completed" (set "Upcoming" by default).
+2. "assignments": An array of service assignment strings detailing who gets which service, by whom, and at what cost. Make it detailed (e.g. "Bride: Royal Bridal Makeover Pack by Priya Rao - ₹15,000").
+3. "roster": An array of stylist names deployed for this event.
+4. "totalCost": An integer representing the total package price in INR.
+5. "b2bPitch": A 2-sentence B2B pitch highlighting how this AI-generated scheduling matches stylist occupancy, reduces booking gaps, and unlocks high-ticket bridal group revenue logistics for salon owners.
+
+Return ONLY this JSON — no markdown, no backticks, no extra text:
+{
+  "timeline": [
+    { "id": "evt-1", "time": "09:00 AM", "event": "...", "status": "Upcoming" }
+  ],
+  "assignments": [
+    "..."
+  ],
+  "roster": [
+    "..."
+  ],
+  "totalCost": 25000,
+  "b2bPitch": "..."
+}
+`;

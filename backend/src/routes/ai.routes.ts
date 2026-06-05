@@ -12,5 +12,7 @@ router.post("/behavioral-exam", AIController.behavioralExam);
 router.post("/analyze-selfie", AIController.analyzeSelfie);
 router.post("/pricing-forecast", AIController.pricingForecast);
 router.post("/generate-share-message", AIController.generateShareMessage);
+router.post("/belsome-score", AIController.belsomeScore);
+router.post("/wedding-planner", AIController.weddingPlanner);
 
 export default router;

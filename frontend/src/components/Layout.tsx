@@ -3,16 +3,92 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock, Sun, Moon, CheckCircle, AlertCircle, Info, X } from "lucide-react";
 
+const getNearestCity = (lat: number, lon: number) => {
+  const cities = [
+    { name: "Hyderabad", lat: 17.3850, lon: 78.4867 },
+    { name: "Bangalore", lat: 12.9716, lon: 77.5946 },
+    { name: "Mumbai", lat: 19.0760, lon: 72.8777 },
+    { name: "Delhi", lat: 28.7041, lon: 77.1025 },
+  ];
+  let nearest = cities[0];
+  let minDist = Infinity;
+  cities.forEach(c => {
+    const dist = Math.sqrt(Math.pow(c.lat - lat, 2) + Math.pow(c.lon - lon, 2));
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = c;
+    }
+  });
+  return nearest.name;
+};
+
 export default function AppLayout() {
-  const { userRole, changeUserRole, toasts, removeToast } = useBelsomeStore();
+  const { userRole, changeUserRole, toasts, removeToast, activeCity, changeActiveCity, addToast } = useBelsomeStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("belsome-theme");
     if (saved === "light" || saved === "dark") return saved;
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      addToast("Geolocation is not supported by your browser.", "error");
+      return;
+    }
+    
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`, {
+            headers: { "Accept-Language": "en" }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const address = data.address;
+            const cityDetected = address.city || address.town || address.state_district || address.state || "";
+            
+            const lowercaseCity = cityDetected.toLowerCase();
+            let matchedCity = "";
+            if (lowercaseCity.includes("bangalore") || lowercaseCity.includes("bengaluru")) matchedCity = "Bangalore";
+            else if (lowercaseCity.includes("mumbai") || lowercaseCity.includes("bombay")) matchedCity = "Mumbai";
+            else if (lowercaseCity.includes("delhi") || lowercaseCity.includes("new delhi") || lowercaseCity.includes("ncr")) matchedCity = "Delhi";
+            else if (lowercaseCity.includes("hyderabad")) matchedCity = "Hyderabad";
+            
+            if (matchedCity) {
+              changeActiveCity(matchedCity);
+              addToast(`Detected Location: ${cityDetected}! Switched to ${matchedCity} market.`, "success");
+            } else {
+              const nearestCity = getNearestCity(latitude, longitude);
+              changeActiveCity(nearestCity);
+              addToast(`Detected: ${cityDetected || "Unknown"}. Not a launched hub yet. Routing to nearest hub: ${nearestCity}.`, "info");
+            }
+          } else {
+            throw new Error("Geocoding failed");
+          }
+        } catch (err) {
+          const nearestCity = getNearestCity(latitude, longitude);
+          changeActiveCity(nearestCity);
+          addToast(`Location detected. Routed to nearest hub: ${nearestCity}.`, "info");
+        } finally {
+          setDetectingLocation(false);
+          setLocationDropdownOpen(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        addToast("Unable to retrieve location. Please select manually.", "warning");
+        setDetectingLocation(false);
+      },
+      { timeout: 8000 }
+    );
+  };
 
   React.useEffect(() => {
     if (theme === "dark") {
@@ -81,9 +157,66 @@ export default function AppLayout() {
             Concept Pitch
           </button>
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-          <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/60 text-purple-700 dark:text-purple-300 font-mono font-semibold">
-            Hyderabad Launch
-          </span>
+          <div className="relative">
+            <button
+              onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 border border-purple-100 dark:border-purple-900/60 text-purple-700 dark:text-purple-300 font-mono font-semibold transition-all hover:scale-105"
+            >
+              <span>📍 {activeCity} Launch</span>
+              <span className="text-[10px]">▼</span>
+            </button>
+
+            {locationDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setLocationDropdownOpen(false)} 
+                />
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#0f0a1c]/95 backdrop-blur-md shadow-xl p-2 z-50 animate-fade-in text-xs font-sans text-left">
+                  <div className="px-2.5 py-1.5 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[9px] border-b border-slate-100 dark:border-slate-800/60 mb-1.5">
+                    Select Market Location
+                  </div>
+                  {["Hyderabad", "Bangalore", "Mumbai", "Delhi"].map((city) => (
+                    <button
+                      key={city}
+                      onClick={() => {
+                        changeActiveCity(city);
+                        setLocationDropdownOpen(false);
+                        addToast(`Switched market to ${city}! Seeded listings updated.`, "success");
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-all ${
+                        activeCity === city
+                          ? "bg-purple-50 dark:bg-purple-950/40 text-purple-750 dark:text-purple-250 font-bold"
+                          : "hover:bg-slate-100 dark:hover:bg-slate-900/50 text-slate-700 dark:text-slate-350"
+                      }`}
+                    >
+                      <span>{city}, India</span>
+                      {activeCity === city && <span className="w-1.5 h-1.5 rounded-full bg-purple-600 dark:bg-purple-400" />}
+                    </button>
+                  ))}
+                  
+                  <div className="border-t border-slate-100 dark:border-slate-800/60 mt-1.5 pt-1.5">
+                    <button
+                      onClick={handleDetectLocation}
+                      disabled={detectingLocation}
+                      className="w-full flex items-center justify-center gap-2 px-2.5 py-2 rounded-lg bg-gradient-to-r from-brand-primary to-brand-secondary hover:opacity-90 text-white font-bold tracking-wide transition-all disabled:opacity-50 text-[11px]"
+                    >
+                      {detectingLocation ? (
+                        <>
+                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Detecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📍 Auto-Detect Location</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
           {/* Dark Mode Toggle */}
           <button
@@ -193,7 +326,7 @@ export default function AppLayout() {
 
 // Interactive WhatsApp Chat Simulator Component
 function WhatsAppBot({ onClose }: { onClose: () => void }) {
-  const { services, addAppointment } = useBelsomeStore();
+  const { services, addAppointment, salons, activeCity } = useBelsomeStore();
   const [step, setStep] = useState<number>(0);
   const [chat, setChat] = useState<{ sender: "user" | "bot"; text: string; options?: string[] }[]>([
     { sender: "bot", text: "🟢 BELSOME Smart Grooming Bot\n\nScan QR or start chat. Send 'Book Appointment' to instantly configure your slots." }
@@ -239,7 +372,7 @@ function WhatsAppBot({ onClose }: { onClose: () => void }) {
           ...prev,
           {
             sender: "bot",
-            text: "Hi! I'm the BELSOME assistant. Type 'Book Appointment' to book a slot, or ask about pricing, services, or our Hyderabad locations."
+          text: `Hi! I'm the BELSOME assistant. Type 'Book Appointment' to book a slot, or ask about pricing, services, or our ${activeCity} locations.`
           }
         ]);
       }
@@ -267,14 +400,16 @@ function WhatsAppBot({ onClose }: { onClose: () => void }) {
     } else if (step === 3) {
       setStep(4);
       const finalService = services[0];
+      const activeSalon = salons[0] || { id: "salon-1", name: "BELSOME Signature Studio" };
+      const activeStylist = useBelsomeStore.getState().stylists[0] || { id: "stylist-1", name: "Vikram Malhotra" };
       addAppointment({
         customerName: "WhatsApp Client",
-        salonId: "salon-1",
-        salonName: "BELSOME Signature Studio",
+        salonId: activeSalon.id,
+        salonName: activeSalon.name,
         serviceId: finalService.id,
         serviceName: finalService.name,
-        stylistId: "stylist-1",
-        stylistName: "Vikram Malhotra",
+        stylistId: activeStylist.id,
+        stylistName: activeStylist.name,
         date: "2026-06-04",
         timeSlot: userMsg,
         productPreference: ["Organic"],
@@ -287,7 +422,7 @@ function WhatsAppBot({ onClose }: { onClose: () => void }) {
         ...prev,
         {
           sender: "bot",
-          text: `🎉 *Appointment Confirmed!*\n\n📍 Studio: BELSOME Signature Studio\n💇 Service: ${finalService.name}\n📅 Date: 2026-06-04\n⏰ Time: ${userMsg}\n🛡️ SLA Guarantee: Express Track 20-Min Activated.\n\nThank you for choosing BELSOME!`
+          text: `🎉 *Appointment Confirmed!*\n\n📍 Studio: ${activeSalon.name}\n💇 Service: ${finalService.name}\n📅 Date: 2026-06-04\n⏰ Time: ${userMsg}\n🛡️ SLA Guarantee: Express Track 20-Min Activated.\n\nThank you for choosing BELSOME!`
         }
       ]);
     } else {

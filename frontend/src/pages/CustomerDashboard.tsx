@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
+import GlowHeatmap from "../components/GlowHeatmap";
 import { 
   MapPin, ShoppingBag, Timer, CheckCircle, RefreshCcw, ShieldCheck, Scissors, Sliders,
   Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download, Share2, Copy, Check
@@ -164,11 +165,12 @@ const getCelebrityImage = (name: string, inputLink?: string) => {
 };
 
 export default function CustomerDashboard() {
-  const { salons, stylists, services, appointments, addAppointment, selectedPreferences, togglePreference, addToast } = useBelsomeStore();
-  const [activeTab, setActiveTab] = useState<"book" | "quiz" | "canvas" | "hero" | "express" | "portfolios">("book");
+  const { salons, stylists, services, appointments, addAppointment, selectedPreferences, togglePreference, addToast, activeCity } = useBelsomeStore();
+  const [activeTab, setActiveTab] = useState<"book" | "quiz" | "canvas" | "hero" | "express" | "portfolios" | "passport">("book");
 
   // Interactive Styling Canvas State
   const [canvasFaceShape, setCanvasFaceShape] = useState<"oval" | "round" | "square" | "heart">("oval");
+  const [scheduleMode, setScheduleMode] = useState<"heatmap" | "standard">("heatmap");
   const [canvasSkinTone, setCanvasSkinTone] = useState("#F5C29A");
   const [selectedHairId, setSelectedHairId] = useState<string>("classic-pomp");
   const [selectedBeardId, setSelectedBeardId] = useState<string>("medium-stubble");
@@ -464,6 +466,140 @@ export default function CustomerDashboard() {
   const [quizResult, setQuizResult] = useState<any>(null);
   const [quizLoading, setQuizLoading] = useState(false);
 
+  const downloadCertificate = () => {
+    if (!quizResult) return;
+    
+    // Create a temporary canvas for the high-res 800x1000 card
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 1000;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // 1. Draw premium background gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, 1000);
+    gradient.addColorStop(0, "#09090b"); // Zinc 950
+    gradient.addColorStop(0.5, "#18181b"); // Zinc 900
+    gradient.addColorStop(1, "#020617"); // Slate 950
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 800, 1000);
+
+    // 2. Draw border frame
+    const borderGrad = ctx.createLinearGradient(0, 0, 800, 1000);
+    borderGrad.addColorStop(0, "#ec4899"); // pink-500
+    borderGrad.addColorStop(0.5, "#a855f7"); // purple-500
+    borderGrad.addColorStop(1, "#f59e0b"); // amber-500
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 12;
+    ctx.strokeRect(20, 20, 760, 960);
+
+    // 3. Header Logo & Brand
+    ctx.font = "bold 32px sans-serif";
+    ctx.fillStyle = "#ec4899"; // pink-500
+    ctx.textAlign = "center";
+    ctx.fillText("BELSOME", 400, 100);
+
+    ctx.font = "normal 12px monospace";
+    ctx.fillStyle = "#a1a1aa"; // zinc-400
+    ctx.fillText("DECENTRALIZED STYLE LAYER", 400, 130);
+
+    // 4. Certificate Title
+    ctx.font = "italic 34px serif";
+    ctx.fillStyle = "#f59e0b"; // gold
+    ctx.fillText("Style Identity Certificate", 400, 220);
+
+    // 5. Customer Name (using a prompt or default)
+    const clientName = prompt("Enter your name for the certificate:", "Rahul Sharma") || "Rahul Sharma";
+    ctx.font = "normal 18px sans-serif";
+    ctx.fillStyle = "#e4e4e7"; // zinc-200
+    ctx.fillText("This is to certify that", 400, 290);
+
+    ctx.font = "extrabold 40px sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(clientName, 400, 365);
+
+    // Draw a decorative line below name
+    const lineGrad = ctx.createLinearGradient(200, 0, 600, 0);
+    lineGrad.addColorStop(0, "rgba(236, 72, 153, 0)");
+    lineGrad.addColorStop(0.5, "#ec4899");
+    lineGrad.addColorStop(1, "rgba(236, 72, 153, 0)");
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(200, 395, 400, 3);
+
+    // 6. Style DNA Profile
+    ctx.font = "normal 18px sans-serif";
+    ctx.fillStyle = "#a1a1aa";
+    ctx.fillText("has been aligned with the AI Style DNA Profile:", 400, 445);
+
+    ctx.font = "extrabold 46px sans-serif";
+    const profileGrad = ctx.createLinearGradient(150, 0, 650, 0);
+    profileGrad.addColorStop(0, "#fb7185"); // rose-400
+    profileGrad.addColorStop(1, "#c084fc"); // purple-400
+    ctx.fillStyle = profileGrad;
+    ctx.fillText(quizResult.profileName, 400, 515);
+
+    ctx.font = "bold italic 20px sans-serif";
+    ctx.fillStyle = "#fcd34d";
+    ctx.fillText(`"${quizResult.tagline}"`, 400, 565);
+
+    // 7. Suggestions details
+    ctx.font = "bold 15px monospace";
+    ctx.fillStyle = "#fb7185";
+    ctx.textAlign = "left";
+    ctx.fillText("RECOMMENDED STYLE PAIRINGS:", 120, 640);
+    
+    ctx.font = "normal 16px sans-serif";
+    ctx.fillStyle = "#a1a1aa";
+    ctx.fillText("Hairstyle:", 120, 685);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(quizResult.hairSuggestion, 290, 685);
+
+    ctx.fillStyle = "#a1a1aa";
+    ctx.fillText("Facial Hair:", 120, 725);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(quizResult.beardSuggestion, 290, 725);
+
+    ctx.fillStyle = "#a1a1aa";
+    ctx.fillText("Hair Tone:", 120, 765);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(quizResult.colorSuggestion, 290, 765);
+
+    // Recommended Stylist
+    const topStylist = quizResult.stylistMatches?.[0]?.name || "Vikram Malhotra";
+    ctx.fillStyle = "#a1a1aa";
+    ctx.fillText("Top Stylist Match:", 120, 805);
+    ctx.fillStyle = "#fcd34d"; // amber-300
+    ctx.fillText(topStylist, 290, 805);
+
+    // 8. Footer metadata / QR code block
+    ctx.font = "normal 10px monospace";
+    ctx.fillStyle = "#71717a";
+    ctx.textAlign = "center";
+    ctx.fillText("CERTIFICATE VERIFICATION HASH: " + Math.random().toString(36).substring(2, 15).toUpperCase(), 400, 895);
+    ctx.fillText("SCAN TO SYNC WITH BELSOME DECENTRALIZED STYLE REGISTER", 400, 915);
+
+    // Draw a small decorative QR code placeholder box
+    ctx.strokeStyle = "#3f3f46";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(375, 930, 50, 50);
+    
+    // Draw simple QR pattern inside
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(380, 935, 10, 10);
+    ctx.fillRect(410, 935, 10, 10);
+    ctx.fillRect(380, 965, 10, 10);
+    ctx.fillRect(395, 950, 10, 10);
+    ctx.fillRect(410, 960, 5, 5);
+
+    // Convert to PNG and trigger download
+    const dataUrl = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.download = `${clientName.replace(/\s+/g, "_")}_Belsome_Style_DNA.png`;
+    link.href = dataUrl;
+    link.click();
+    addToast("📸 Branded Style Identity Certificate downloaded!", "success");
+  };
+
   // Be Next Hero State
   const [heroInput, setHeroInput] = useState("");
   const [heroResult, setHeroResult] = useState<any>(null);
@@ -558,9 +694,15 @@ export default function CustomerDashboard() {
       setQuizStep(6);
       addToast("✨ Style DNA Passport generated!", "success");
     } catch (e) {
-      console.error(e);
-      setQuizError("AI is unavailable. Make sure the backend is running.");
-      addToast("❌ Failed to generate Style DNA.", "error");
+      console.error("Style DNA generation failed, falling back to mock:", e);
+      try {
+        const mockDna = await ApiService.getClientSideMock("style-dna", quizAnswers);
+        setQuizResult({ ...mockDna, isOffline: true });
+        setQuizStep(6);
+        addToast("✨ Style DNA Passport generated (offline mode)!", "info");
+      } catch (fallbackErr) {
+        setQuizError("AI is unavailable. Make sure the backend is running.");
+      }
     } finally {
       setQuizLoading(false);
     }
@@ -581,9 +723,18 @@ export default function CustomerDashboard() {
       setLookResult(look);
       addToast(`✨ Look matched: ${response.celebrityMatch} - ${response.hairstyle}!`, "success");
     } catch (e) {
-      console.error(e);
-      setHeroError("AI is unavailable. Make sure the backend is running.");
-      addToast("❌ Style extraction failed.", "error");
+      console.error("Celebrity style extraction failed, falling back to mock:", e);
+      try {
+        const mockHero = await ApiService.getClientSideMock("be-next-hero", { inputData: input });
+        setHeroResult({ ...mockHero, isOffline: true });
+        
+        const mockLook = await ApiService.getClientSideMock("look-finder", { styleProfile: mockHero.celebrityMatch + " " + mockHero.hairstyle });
+        setLookResult({ ...mockLook, isOffline: true });
+        
+        addToast(`✨ Look matched (offline mode): ${mockHero.celebrityMatch}!`, "info");
+      } catch (fallbackErr) {
+        setHeroError("AI is unavailable. Make sure the backend is running.");
+      }
     } finally {
       setHeroLoading(false);
     }
@@ -634,6 +785,7 @@ export default function CustomerDashboard() {
             { id: "canvas", label: "Interactive Canvas", icon: Scissors },
             { id: "hero", label: "Be Next Hero", icon: Play },
             { id: "express", label: "Express Track SLA", icon: Timer },
+            { id: "passport", label: "Digital Passport", icon: ShieldCheck },
             { id: "portfolios", label: "Stylist Portfolios", icon: Award }
           ].map((tab) => {
             const Icon = tab.icon;
@@ -906,50 +1058,95 @@ export default function CustomerDashboard() {
             {/* Step 3: Date, Time & Product Preference Warning */}
             {bookingStep === 3 && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Date Input */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono font-bold text-purple-700 uppercase">Select Date</label>
-                    <input
-                      type="date"
-                      value={bookingDate}
-                      min={new Date().toISOString().split("T")[0]}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                {/* Schedule Selector Mode Tabs */}
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg max-w-sm">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode("heatmap")}
+                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      scheduleMode === "heatmap"
+                        ? "bg-white text-purple-700 shadow-sm border border-slate-200"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    ⚡ Dynamic Heatmap Calendar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode("standard")}
+                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      scheduleMode === "standard"
+                        ? "bg-white text-purple-700 shadow-sm border border-slate-200"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Standard Grid Picker
+                  </button>
+                </div>
+
+                {scheduleMode === "heatmap" ? (
+                  <div className="space-y-3">
+                    <div className="space-y-0.5 text-left">
+                      <h4 className="text-xs font-mono font-bold text-purple-700 uppercase">Interactive Weekly Heatmap Calendar</h4>
+                      <p className="text-[10px] text-slate-405 font-semibold">Click any available block to select both your appointment date and time instantly.</p>
+                    </div>
+                    <GlowHeatmap
+                      salonId={selectedSalon}
+                      selectedDate={bookingDate}
+                      selectedTimeSlot={bookingTime}
+                      onSlotSelect={(dateStr, timeSlotStr) => {
+                        setBookingDate(dateStr);
+                        setBookingTime(timeSlotStr);
+                        addToast(`📅 Selected: ${dateStr} at ${timeSlotStr}`, "success");
+                      }}
                     />
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+                    {/* Date Input */}
+                    <div className="space-y-2 text-left">
+                      <label className="text-xs font-mono font-bold text-purple-700 uppercase">Select Date</label>
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        min={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                      />
+                    </div>
 
-                  {/* Time Slots Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono font-bold text-purple-700 uppercase block">Select Time Slot</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {["09:00 AM", "11:30 AM", "01:30 PM", "03:00 PM", "05:30 PM", "07:00 PM"].map((slot) => {
-                        const calculated = calculateDynamicPrice(currentServiceObj.price, bookingDate, slot);
-                        const isDiscount = calculated.finalPrice < calculated.originalPrice;
-                        const isSurge = calculated.finalPrice > calculated.originalPrice;
+                    {/* Time Slots Selector */}
+                    <div className="space-y-2 text-left">
+                      <label className="text-xs font-mono font-bold text-purple-700 uppercase block">Select Time Slot</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["09:00 AM", "11:30 AM", "01:30 PM", "03:00 PM", "05:30 PM", "07:00 PM"].map((slot) => {
+                          const calculated = calculateDynamicPrice(currentServiceObj.price, bookingDate, slot);
+                          const isDiscount = calculated.finalPrice < calculated.originalPrice;
+                          const isSurge = calculated.finalPrice > calculated.originalPrice;
 
-                        return (
-                          <button
-                            key={slot}
-                            onClick={() => setBookingTime(slot)}
-                            className={`p-2.5 rounded-lg border text-center transition-all ${
-                              bookingTime === slot
-                                ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/10"
-                                : "bg-slate-50 border-slate-200 hover:border-slate-350 hover:bg-slate-100 text-slate-700 font-semibold"
-                            }`}
-                          >
-                            <span className="block text-xs font-bold">{slot}</span>
-                            <span className={`text-[8px] font-mono font-bold block mt-1 ${
-                              isDiscount ? "text-green-600" : isSurge ? "text-amber-600" : "text-slate-400"
-                            }`}>
-                              {isDiscount ? "-20% Off" : isSurge ? "+15% Surge" : "Standard"}
-                            </span>
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={slot}
+                              onClick={() => setBookingTime(slot)}
+                              className={`p-2.5 rounded-lg border text-center transition-all ${
+                                bookingTime === slot
+                                  ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/10"
+                                  : "bg-slate-50 border-slate-200 hover:border-slate-350 hover:bg-slate-100 text-slate-700 font-semibold text-xs"
+                              }`}
+                            >
+                              <span className="block font-bold">{slot}</span>
+                              <span className={`text-[8px] font-mono font-bold block mt-1 ${
+                                isDiscount ? "text-green-600" : isSurge ? "text-amber-600" : "text-slate-400"
+                              }`}>
+                                {isDiscount ? "-20% Off" : isSurge ? "+15% Surge" : "Standard"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Preference Alert Box */}
                 {selectedPreferences.length > 0 && (
@@ -1144,8 +1341,23 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
 
+                {/* Digital Grooming Passport Card */}
+                <div className="space-y-2 text-left mt-6">
+                  <h5 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider pl-1">Your Digital Grooming Passport</h5>
+                  <GroomingPassport
+                    quizResult={quizResult}
+                    activeHairItem={activeHairItem}
+                    activeBeardItem={activeBeardItem}
+                    selectedPreferences={selectedPreferences}
+                    canvasFaceShape={canvasFaceShape}
+                    canvasSkinTone={canvasSkinTone}
+                    confirmedBooking={confirmedBooking}
+                    addToast={addToast}
+                  />
+                </div>
+
                 {/* AI WhatsApp Share Panel */}
-                <div className="p-5 bg-gradient-to-br from-purple-50/50 to-pink-50/30 border border-purple-100 rounded-xl text-left space-y-4 shadow-sm relative overflow-hidden">
+                <div className="p-5 bg-gradient-to-br from-purple-50/50 to-pink-50/30 border border-purple-100 rounded-xl text-left space-y-4 shadow-sm relative overflow-hidden animate-fade-in">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-purple-650 animate-pulse" />
@@ -1326,7 +1538,7 @@ export default function CustomerDashboard() {
                 <div className="space-y-2">
                   <h3 className="font-display font-extrabold text-3xl text-slate-900">Visual Style DNA Onboarding</h3>
                   <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                    Take our 5-question visual styling assessment. BELSOME AI will match your profile DNA with the top 3 stylists in Hyderabad.
+                    Take our 5-question visual styling assessment. BELSOME AI will match your profile DNA with the top 3 stylists in {activeCity}.
                   </p>
                 </div>
                 <button
@@ -1436,9 +1648,14 @@ export default function CustomerDashboard() {
                         setQuizResult(res);
                         addToast("✨ Style DNA Passport generated!", "success");
                       } catch (e) {
-                        console.error(e);
-                        setQuizError("AI is unavailable. Make sure the backend is running.");
-                        addToast("❌ Failed to generate Style DNA.", "error");
+                        console.error("Style DNA generation failed, falling back to mock:", e);
+                        try {
+                          const mockDna = await ApiService.getClientSideMock("style-dna", updated);
+                          setQuizResult({ ...mockDna, isOffline: true });
+                          addToast("✨ Style DNA Passport generated (offline mode)!", "info");
+                        } catch (fallbackErr) {
+                          setQuizError("AI is unavailable. Make sure the backend is running.");
+                        }
                       } finally {
                         setQuizLoading(false);
                       }
@@ -1535,9 +1752,17 @@ export default function CustomerDashboard() {
                       </div>
 
                       <div className="space-y-1">
-                        <span className="inline-block px-2.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-amber-400 font-mono text-[9px] tracking-widest uppercase font-bold">
-                          BELSOME STYLE DNA PASSPORT
-                        </span>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="inline-block px-2.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-amber-400 font-mono text-[9px] tracking-widest uppercase font-bold">
+                            BELSOME STYLE DNA PASSPORT
+                          </span>
+                          {quizResult.isOffline && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-[9px] font-bold">
+                              <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                              Live AI offline — showing demo data
+                            </span>
+                          )}
+                        </div>
                         <h3 className="font-display font-black text-3xl text-white tracking-wide mt-2">{quizResult.profileName} Identity</h3>
                         <p className="text-xs text-amber-300 font-bold font-mono tracking-wider">{quizResult.tagline}</p>
                       </div>
@@ -1567,6 +1792,16 @@ export default function CustomerDashboard() {
                           <strong className="text-white block mb-1 font-mono text-[10px] tracking-wider uppercase">DNA Alignment Reasoning:</strong>
                           {quizResult.matchReasoning}
                         </div>
+                      </div>
+
+                      {/* Download Certificate CTA */}
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <button
+                          onClick={downloadCertificate}
+                          className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-pink-600 to-purple-650 hover:opacity-95 text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-pink-600/10 active:scale-97 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Download Style Identity Certificate
+                        </button>
                       </div>
                     </div>
 
@@ -1898,8 +2133,16 @@ export default function CustomerDashboard() {
                   {/* Extract Specifications */}
                   <div className="md:col-span-2 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div className="inline-block px-2.5 py-0.5 rounded bg-purple-50 border border-purple-100 text-purple-700 font-mono text-[10px] font-bold uppercase tracking-wider">
-                        Celebrity Styling Match Report
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-block px-2.5 py-0.5 rounded bg-purple-50 border border-purple-100 text-purple-700 font-mono text-[10px] font-bold uppercase tracking-wider">
+                          Celebrity Styling Match Report
+                        </div>
+                        {heroResult.isOffline && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Live AI offline — showing demo data
+                          </div>
+                        )}
                       </div>
                       <span className="text-xs font-mono font-bold text-slate-400">ID: B-HERO-{heroResult.matchConfidence}</span>
                     </div>
@@ -2977,6 +3220,51 @@ export default function CustomerDashboard() {
             </div>
           </div>
         )}
+
+        {activeTab === "passport" && (
+          <div className="glass-panel p-6 rounded-2xl border border-slate-200/60 shadow-sm bg-white space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-display font-extrabold text-xl text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-purple-700" />
+                  Your Digital Grooming Passport
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  Scan this passport at any BELSOME salon. Our stylists will instantly sync with your Style DNA, preferences, face shape, and styling history.
+                </p>
+              </div>
+            </div>
+
+            <div className="max-w-xl mx-auto py-4">
+              <GroomingPassport
+                quizResult={quizResult}
+                activeHairItem={activeHairItem}
+                activeBeardItem={activeBeardItem}
+                selectedPreferences={selectedPreferences}
+                canvasFaceShape={canvasFaceShape}
+                canvasSkinTone={canvasSkinTone}
+                lastCompletedAppt={appointments.find(a => a.customerName.includes("Rohan") && a.status === "Completed")}
+                addToast={addToast}
+              />
+            </div>
+            
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 font-semibold text-slate-650 text-xs shadow-inner">
+              <h4 className="font-bold text-slate-800 flex items-center gap-1.5 font-display text-sm">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                How it works
+              </h4>
+              <p className="leading-relaxed">
+                1. 🧪 <strong>Style DNA Matching:</strong> Whenever you change your choices in the Interactive Canvas or retake the Style DNA Quiz, your passport automatically rebuilds with the latest suggestions.
+              </p>
+              <p className="leading-relaxed">
+                2. 🔬 <strong>Zero Consultation:</strong> The encoded QR code contains your skin tone color hex, face shape details, hair & beard styles, chemical inventory preferences, and your latest appointment history.
+              </p>
+              <p className="leading-relaxed">
+                3. 📱 <strong>Stylist Scanning:</strong> Your stylist will scan this QR code on their dashboard to read your exact profile instantly.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3032,6 +3320,195 @@ function LookCardItem({ label, title, brand, buyUrl }: { label: string; title: s
           <ShoppingBag className="w-3.5 h-3.5 shrink-0" /> Shop Item
         </a>
       )}
+    </div>
+  );
+}
+
+interface GroomingPassportProps {
+  quizResult: any;
+  activeHairItem: any;
+  activeBeardItem: any;
+  selectedPreferences: string[];
+  canvasFaceShape: string;
+  canvasSkinTone: string;
+  confirmedBooking?: any;
+  lastCompletedAppt?: any;
+  addToast: (msg: string, type?: any) => void;
+}
+
+function GroomingPassport({
+  quizResult,
+  activeHairItem,
+  activeBeardItem,
+  selectedPreferences,
+  canvasFaceShape,
+  canvasSkinTone,
+  confirmedBooking,
+  lastCompletedAppt,
+  addToast
+}: GroomingPassportProps) {
+  const qrRef = useRef<HTMLDivElement>(null);
+  
+  // Construct passport payload
+  const styleDNA = {
+    profileName: quizResult?.profileName || "Casual Trendsetter",
+    tagline: quizResult?.tagline || "Clean modern styling",
+    hairSuggestion: quizResult?.hairSuggestion || activeHairItem.name,
+    beardSuggestion: quizResult?.beardSuggestion || activeBeardItem.name,
+    preferences: selectedPreferences
+  };
+
+  const lastService = confirmedBooking?.serviceName || lastCompletedAppt?.serviceName || "None";
+  const stylistMatch = confirmedBooking?.stylistName || lastCompletedAppt?.stylistName || "None";
+
+  const passportPayload = {
+    styleDNA,
+    lastService,
+    stylistMatch,
+    skinTone: canvasSkinTone,
+    faceShape: canvasFaceShape
+  };
+
+  useEffect(() => {
+    let active = true;
+    // Wait slightly to ensure script is loaded and ref is populated
+    const timer = setTimeout(() => {
+      if (active && qrRef.current && (window as any).QRCode) {
+        qrRef.current.innerHTML = "";
+        try {
+          new (window as any).QRCode(qrRef.current, {
+            text: JSON.stringify(passportPayload),
+            width: 130,
+            height: 130,
+            colorDark: "#09090b", // slate-955
+            colorLight: "#ffffff",
+            correctLevel: (window as any).QRCode.CorrectLevel.M
+          });
+        } catch (e) {
+          console.error("QR Code generation failed", e);
+        }
+      }
+    }, 100);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [quizResult, activeHairItem, activeBeardItem, selectedPreferences, canvasFaceShape, canvasSkinTone, confirmedBooking, lastCompletedAppt]);
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    const text = `BELSOME Grooming Passport:\n` +
+      `- Profile: ${styleDNA.profileName}\n` +
+      `- Hair: ${styleDNA.hairSuggestion}\n` +
+      `- Beard: ${styleDNA.beardSuggestion}\n` +
+      `- Preferences: ${styleDNA.preferences.join(", ") || "Standard"}\n` +
+      `- Last Service: ${lastService}\n` +
+      `- Stylist: ${stylistMatch}\n` +
+      `- Face Shape: ${canvasFaceShape}\n` +
+      `- Skin Tone: ${canvasSkinTone}`;
+    
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    addToast("📋 Passport details copied to clipboard!", "success");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = `Hey BELSOME Stylist! ✂️ Here are my Digital Grooming Passport details:\n\n` +
+      `👤 *Style Identity:* ${styleDNA.profileName}\n` +
+      `💈 *Hair Suggestion:* ${styleDNA.hairSuggestion}\n` +
+      `🧔 *Beard Suggestion:* ${styleDNA.beardSuggestion}\n` +
+      `🌿 *Preferences:* ${styleDNA.preferences.join(", ") || "Standard"}\n` +
+      `💆 *Last Service:* ${lastService}\n` +
+      `🧑‍🎨 *Stylist Match:* ${stylistMatch}\n` +
+      `📐 *Face Shape:* ${canvasFaceShape}\n\n` +
+      `Scan my QR code on screen at the studio! ✨`;
+    
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  return (
+    <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 border border-purple-500/30 rounded-2xl p-6 text-white text-left space-y-6 shadow-2xl overflow-hidden">
+      {/* Laser light accent */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+      
+      {/* Header Branding */}
+      <div className="flex justify-between items-start pb-4 border-b border-slate-800">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-purple-400" />
+            <span className="text-[10px] font-mono font-bold text-purple-400 uppercase tracking-widest">DIGITAL GROOMING PASSPORT</span>
+          </div>
+          <h4 className="font-display font-extrabold text-lg text-white">BELSOME ID PROFILE</h4>
+        </div>
+        <span className="text-[8px] bg-purple-500/10 border border-purple-500/35 text-purple-400 font-mono font-bold px-2 py-0.5 rounded">
+          FRONTEND VERIFIED
+        </span>
+      </div>
+
+      {/* Main Details & QR Code */}
+      <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+        {/* Left Side: QR Code */}
+        <div className="shrink-0 flex flex-col items-center gap-1.5 p-2 bg-white rounded-xl border border-slate-800 shadow-lg select-none">
+          <div ref={qrRef} className="w-[130px] h-[130px] flex items-center justify-center bg-white" />
+          <span className="text-[8px] font-mono font-extrabold text-slate-800 uppercase tracking-widest">SCAN AT SALON</span>
+        </div>
+
+        {/* Right Side: Passport Info */}
+        <div className="flex-grow grid grid-cols-2 gap-x-4 gap-y-3.5 text-xs font-semibold text-slate-350">
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Style Identity</span>
+            <strong className="text-white text-sm">{styleDNA.profileName}</strong>
+          </div>
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Face Shape</span>
+            <strong className="text-purple-400 text-sm uppercase">{canvasFaceShape}</strong>
+          </div>
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Hair Suggestion</span>
+            <strong className="text-white text-sm">{styleDNA.hairSuggestion}</strong>
+          </div>
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Beard Suggestion</span>
+            <strong className="text-white text-sm">{styleDNA.beardSuggestion}</strong>
+          </div>
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Last Service</span>
+            <strong className="text-white text-sm">{lastService}</strong>
+          </div>
+          <div>
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Stylist Match</span>
+            <strong className="text-white text-sm">{stylistMatch}</strong>
+          </div>
+          <div className="col-span-2">
+            <span className="text-[8px] font-mono font-bold text-slate-500 uppercase block tracking-wider">Chemical Preferences</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {styleDNA.preferences.length > 0
+                ? styleDNA.preferences.map(p => <span key={p} className="px-1.5 py-0.5 rounded bg-pink-500/20 border border-pink-500/30 text-pink-300 font-mono text-[9px] font-bold">{p}</span>)
+                : <span className="text-slate-500">None Specified (Standard)</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Share / CTA Actions */}
+      <div className="pt-4 border-t border-slate-800 flex gap-3">
+        <button
+          onClick={handleShareWhatsApp}
+          className="flex-1 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all"
+        >
+          <Share2 className="w-3.5 h-3.5" /> Share with Stylist
+        </button>
+        <button
+          onClick={handleCopy}
+          className="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? "Copied!" : "Copy Passport"}
+        </button>
+      </div>
     </div>
   );
 }

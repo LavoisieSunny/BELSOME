@@ -4,7 +4,7 @@ import { ApiService } from "../services/api";
 import { ShoppingBag, PlusCircle, AlertCircle, CheckCircle2, TrendingUp, RefreshCcw } from "lucide-react";
 
 export default function VendorDashboard() {
-  const { vendorProducts, addVendorProduct } = useBelsomeStore();
+  const { vendorProducts, addVendorProduct, activeCity } = useBelsomeStore();
 
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
@@ -51,8 +51,38 @@ export default function VendorDashboard() {
       setName("");
       setBrand("");
     } catch (e) {
-      console.error(e);
-      setError("AI is unavailable. Make sure the backend is running.");
+      console.error("Vendor procurement analysis failed, falling back to mock:", e);
+      try {
+        const response = await ApiService.getClientSideMock("procurement", {
+          name,
+          brand,
+          certifications: certs,
+          cost,
+          retail,
+          budget: 5000,
+          prefBrands: "BioGlow, OrganicLife",
+          marginGoal: 50
+        });
+        const margin = parseFloat(((retail - cost) / retail * 100).toFixed(1));
+        const offlineResponse = { ...response, isOffline: true };
+        addVendorProduct({
+          name,
+          brand,
+          certifications: certs.split(","),
+          cost,
+          retail,
+          margin,
+          score: offlineResponse.score,
+          status: offlineResponse.status,
+          explanation: offlineResponse.explanation
+        });
+
+        setLastResult({ ...offlineResponse, name, brand, margin });
+        setName("");
+        setBrand("");
+      } catch (fallbackErr) {
+        setError("AI is unavailable. Make sure the backend is running.");
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +104,7 @@ export default function VendorDashboard() {
           </div>
           <div className="h-px bg-slate-200" />
           <div className="text-xs text-slate-500 font-semibold leading-normal">
-            Upload premium catalog ingredients to BELSOME. AI immediately scores catalog listings for Hyderabad studios.
+            Upload premium catalog ingredients to BELSOME. AI immediately scores catalog listings for {activeCity} studios.
           </div>
         </div>
       </div>
@@ -169,13 +199,21 @@ export default function VendorDashboard() {
                   <h4 className="font-bold text-slate-800 text-sm leading-tight">{lastResult.name}</h4>
                   <span className="text-[10px] text-slate-400 font-bold">Margin: {lastResult.margin}%</span>
                 </div>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  lastResult.status === "ACCEPT" ? "bg-green-50 border border-green-200 text-green-700" :
-                  lastResult.status === "REVIEW" ? "bg-amber-50 border border-amber-200 text-amber-700" :
-                  "bg-red-50 border border-red-200 text-red-700"
-                }`}>
-                  {lastResult.status} (Score: {lastResult.score})
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    lastResult.status === "ACCEPT" ? "bg-green-50 border border-green-200 text-green-700" :
+                    lastResult.status === "REVIEW" ? "bg-amber-50 border border-amber-200 text-amber-700" :
+                    "bg-red-50 border border-red-200 text-red-700"
+                  }`}>
+                    {lastResult.status} (Score: {lastResult.score})
+                  </span>
+                  {lastResult.isOffline && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-550 animate-pulse" />
+                      Live AI offline — showing demo data
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="h-px bg-slate-200" />
               <p className="text-[11px] text-slate-600 leading-normal font-sans font-semibold">

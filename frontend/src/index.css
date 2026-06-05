@@ -109,6 +109,30 @@
   pointer-events: none;
 }
 
+@keyframes scanBeam {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 98%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+.animate-scan-beam {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #a855f7, transparent);
+  box-shadow: 0 0 10px 2px #c084fc;
+  animation: scanBeam 3.2s linear infinite;
+  z-index: 10;
+  pointer-events: none;
+}
+
 /* Background floating animation for extra startup vibe */
 @keyframes float {
   0%, 100% {

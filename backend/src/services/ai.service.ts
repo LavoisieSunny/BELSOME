@@ -19,7 +19,7 @@ async function executeLLM(prompt: string, fallbackMock: () => any): Promise<any>
   // ── Gemini path (primary, free) ──
   if (gemini) {
     try {
-      const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(
         prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
       );
@@ -43,21 +43,45 @@ async function executeLLMVision(
 ): Promise<any> {
   if (gemini) {
     try {
-      const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // ✅ FIX 1: Use gemini-2.5-flash (latest, free, better vision support)
+      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+      // ✅ FIX 2: Clean base64 BEFORE building the part
+      let { data, mimeType } = imagePart.inlineData;
+      const matches = data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        mimeType = matches[1];
+        data = matches[2];
+      }
+
+      const cleanImagePart = {
+        inlineData: { data, mimeType }
+      };
+
       const result = await model.generateContent([
-        prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text.",
-        imagePart
+        {
+          text: prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
+        },
+        cleanImagePart  // ✅ FIX 3: Pass as separate content part
       ]);
+
       const text = result.response.text();
       const cleaned = text.replace(/```json|```/gi, "").trim();
       return JSON.parse(cleaned);
+
     } catch (err: any) {
-      console.warn("⚠️ Gemini Vision API call failed, using fallback:", err.message || err);
+      console.error("❌ Gemini Vision error:", err.message || err);
       return fallbackMock();
     }
   }
-  return fallbackMock();
 }
+
+const CITY_STYLISTS: Record<string, { stylist1: string, stylist2: string, stylist3: string }> = {
+  Hyderabad: { stylist1: "Vikram Malhotra", stylist2: "Priya Rao", stylist3: "Suresh K." },
+  Bangalore: { stylist1: "Arjun Reddy", stylist2: "Kavya Nair", stylist3: "Rohan Sen" },
+  Mumbai: { stylist1: "Sameer Khan", stylist2: "Aisha Patel", stylist3: "Kabir Mehta" },
+  Delhi: { stylist1: "Rahul Sharma", stylist2: "Neha Kapoor", stylist3: "Amit Singh" },
+};
 
 export class AIService {
   
@@ -80,13 +104,14 @@ export class AIService {
   }
 
   // 1. AI Grooming Concierge
-  static async getGroomingConcierge(query: string, history?: any[]): Promise<any> {
+  static async getGroomingConcierge(query: string, history?: any[], activeCity: string = "Hyderabad"): Promise<any> {
     const historyText = (history || [])
       .map((h: any) => `${h.role === 'user' ? 'Customer' : 'You'}: ${h.text}`)
       .join('\n');
     const prompt = prompts.CONCIERGE_PROMPT
       .replace("{history}", historyText || "None")
-      .replace("{query}", query);
+      .replace("{query}", query)
+      .replace(/Hyderabad/g, activeCity);
     return this.executeLLM(prompt, () => {
       const q = query.toLowerCase();
       let hair = "Classic Taper Fade";
@@ -164,7 +189,7 @@ export class AIService {
       }
 
       return {
-        reply: `Hello! Based on your query "${query}", we have curated a custom premium profile for you. We suggest styles that look professional yet modern, fitting Hyderabad's style scene.`,
+        reply: `Hello! Based on your query "${query}", we have curated a custom premium profile for you. We suggest styles that look professional yet modern, fitting ${activeCity}'s style scene.`,
         hairstyle: hair,
         beard: beard,
         color: "Natural Matte Black Highlights",
@@ -182,13 +207,18 @@ export class AIService {
     colorOpen: string;
     occasion: string;
     lifestyle: string;
-  }): Promise<any> {
+  }, activeCity: string = "Hyderabad"): Promise<any> {
+    const stylistsInfo = CITY_STYLISTS[activeCity] || CITY_STYLISTS["Hyderabad"];
     const prompt = prompts.STYLE_DNA_PROMPT
       .replace("{stylePref}", answers.stylePref)
       .replace("{hairLength}", answers.hairLength)
       .replace("{colorOpen}", answers.colorOpen)
       .replace("{occasion}", answers.occasion)
-      .replace("{lifestyle}", answers.lifestyle);
+      .replace("{lifestyle}", answers.lifestyle)
+      .replace(/Hyderabad/g, activeCity)
+      .replace(/Vikram Malhotra/g, stylistsInfo.stylist1)
+      .replace(/Priya Rao/g, stylistsInfo.stylist2)
+      .replace(/Suresh K\./g, stylistsInfo.stylist3);
 
     return this.executeLLM(prompt, () => {
       const pref = answers.stylePref.toLowerCase();
@@ -332,10 +362,11 @@ export class AIService {
       if (scoreVikram === scoreSuresh) scoreVikram += 1;
       if (scorePriya === scoreSuresh) scorePriya += 1;
 
+      const stylistsInfo = CITY_STYLISTS[activeCity] || CITY_STYLISTS["Hyderabad"];
       const matches = [
-        { name: "Vikram Malhotra", specialty: "Master Hair Sculptor & Fade Specialist", matchPercentage: scoreVikram, reasoning: reasonVikram },
-        { name: "Priya Rao", specialty: "Celebrity Groomer & Hair Colorist", matchPercentage: scorePriya, reasoning: reasonPriya },
-        { name: "Suresh K.", specialty: "Natural Wave Artist & Spa Therapy Specialist", matchPercentage: scoreSuresh, reasoning: reasonSuresh }
+        { name: stylistsInfo.stylist1, specialty: "Master Hair Sculptor & Fade Specialist", matchPercentage: scoreVikram, reasoning: reasonVikram },
+        { name: stylistsInfo.stylist2, specialty: "Celebrity Groomer & Hair Colorist", matchPercentage: scorePriya, reasoning: reasonPriya },
+        { name: stylistsInfo.stylist3, specialty: "Natural Wave Artist & Spa Therapy Specialist", matchPercentage: scoreSuresh, reasoning: reasonSuresh }
       ];
 
       // Sort by matchPercentage descending
@@ -355,8 +386,10 @@ export class AIService {
   }
 
   // 3. Be Next Hero / Style Extractor
-  static async getBeNextHero(inputData: string): Promise<any> {
-    const prompt = prompts.BE_NEXT_HERO_PROMPT.replace("{inputData}", inputData);
+  static async getBeNextHero(inputData: string, activeCity: string = "Hyderabad"): Promise<any> {
+    const prompt = prompts.BE_NEXT_HERO_PROMPT
+      .replace("{inputData}", inputData)
+      .replace(/Hyderabad/g, activeCity);
     return this.executeLLM(prompt, () => {
       const inp = inputData.toLowerCase();
       let celeb = "Ranbir Kapoor";
@@ -439,8 +472,10 @@ export class AIService {
   }
 
   // 4. Full Look Finder
-  static async getLookFinder(styleProfile: string): Promise<any> {
-    const prompt = prompts.LOOK_FINDER_PROMPT.replace("{styleProfile}", styleProfile);
+  static async getLookFinder(styleProfile: string, activeCity: string = "Hyderabad"): Promise<any> {
+    const prompt = prompts.LOOK_FINDER_PROMPT
+      .replace("{styleProfile}", styleProfile)
+      .replace(/Hyderabad/g, activeCity);
     return this.executeLLM(prompt, () => {
       const p = styleProfile.toLowerCase();
       let outfit = "Sleek Corporate Noir";
@@ -451,7 +486,7 @@ export class AIService {
       let acc = ["Leather Belt (Zara)", "Signature Sandalwood cologne note"];
 
       if (p.includes("trendy") || p.includes("street") || p.includes("allu arjun") || p.includes("messy flow")) {
-        outfit = "Hyderabad Street Vibe";
+        outfit = `${activeCity} Street Vibe`;
         shirt = "Oversized Printed Cuban Collar Shirt (H&M)";
         trousers = "Relaxed-Fit Pleated Cargo Trousers (Zara)";
         shoes = "Vibe Chunky Retro Trainers (Zara)";
@@ -505,7 +540,7 @@ export class AIService {
     budget: number;
     prefBrands: string;
     marginGoal: number;
-  }): Promise<any> {
+  }, activeCity: string = "Hyderabad"): Promise<any> {
     const prompt = prompts.PROCUREMENT_PROMPT
       .replace("{name}", params.name)
       .replace("{brand}", params.brand)
@@ -514,7 +549,8 @@ export class AIService {
       .replace("{retail}", String(params.retail))
       .replace("{budget}", String(params.budget))
       .replace("{prefBrands}", params.prefBrands)
-      .replace("{marginGoal}", String(params.marginGoal));
+      .replace("{marginGoal}", String(params.marginGoal))
+      .replace(/Hyderabad/g, activeCity);
 
     return this.executeLLM(prompt, () => {
       // Calculate margins
@@ -557,11 +593,12 @@ export class AIService {
     scenario: string;
     language: string;
     response: string;
-  }): Promise<any> {
+  }, activeCity: string = "Hyderabad"): Promise<any> {
     const prompt = prompts.BEHAVIORAL_EXAM_PROMPT
       .replace("{scenario}", params.scenario)
       .replace("{language}", params.language)
-      .replace("{response}", params.response);
+      .replace("{response}", params.response)
+      .replace(/Hyderabad/g, activeCity);
 
     return this.executeLLM(prompt, () => {
       const resp = params.response.toLowerCase();
@@ -610,7 +647,7 @@ export class AIService {
   }
 
   // 7. Selfie Face Shape Analysis
-  static async analyzeSelfie(image: string, mimeType: string, filename?: string, clientAnalysis?: any): Promise<any> {
+  static async analyzeSelfie(image: string, mimeType: string, filename?: string, clientAnalysis?: any, activeCity: string = "Hyderabad"): Promise<any> {
     const imagePart = {
       inlineData: {
         data: image,
@@ -629,7 +666,7 @@ export class AIService {
       imagePart.inlineData.mimeType = cleanMimeType;
     }
 
-    return this.executeLLMVision(prompts.SELFIE_PROMPT, imagePart, () => {
+    return this.executeLLMVision(prompts.SELFIE_PROMPT.replace(/Hyderabad/g, activeCity), imagePart, () => {
       if (clientAnalysis) {
         return clientAnalysis;
       }
@@ -674,10 +711,11 @@ export class AIService {
   }
 
   // 8. Dynamic Pricing Revenue Forecast & Recommendation
-  static async getPricingForecast(peakSurge: number, offPeakDiscount: number): Promise<any> {
+  static async getPricingForecast(peakSurge: number, offPeakDiscount: number, activeCity: string = "Hyderabad"): Promise<any> {
     const prompt = prompts.PRICING_FORECAST_PROMPT
       .replace("{peakSurge}", peakSurge.toString())
-      .replace("{offPeakDiscount}", offPeakDiscount.toString());
+      .replace("{offPeakDiscount}", offPeakDiscount.toString())
+      .replace(/Hyderabad/g, activeCity);
 
     return this.executeLLM(prompt, () => {
       const baseRevenue = 154000;
@@ -699,9 +737,14 @@ export class AIService {
       let offPeakStatus = "OPTIMAL";
       const recs: string[] = [];
 
+      const premiumArea = activeCity === "Bangalore" ? "Indiranagar" :
+                          activeCity === "Mumbai" ? "Bandra" :
+                          activeCity === "Delhi" ? "Connaught Place" :
+                          "Jubilee Hills";
+
       if (peakSurge > 25) {
         surgeStatus = "TOO_HIGH";
-        recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in Jubilee Hills may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
+        recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in ${premiumArea} may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
       } else if (peakSurge < 15) {
         surgeStatus = "TOO_LOW";
         recs.push(`A +${peakSurge}% peak surge is conservative. Weekend occupancy remains at 95%+, meaning you are leaving high-margin revenue on the table. We recommend raising this to at least +15%.`);
@@ -741,7 +784,7 @@ export class AIService {
     date: string;
     timeSlot: string;
     finalPrice: number;
-  }): Promise<any> {
+  }, activeCity: string = "Hyderabad"): Promise<any> {
     const prompt = prompts.SHARE_MESSAGE_PROMPT
       .replace("{customerName}", bookingData.customerName)
       .replace("{serviceName}", bookingData.serviceName)
@@ -749,7 +792,8 @@ export class AIService {
       .replace("{salonName}", bookingData.salonName)
       .replace("{date}", bookingData.date)
       .replace("{timeSlot}", bookingData.timeSlot)
-      .replace("{finalPrice}", bookingData.finalPrice.toString());
+      .replace("{finalPrice}", bookingData.finalPrice.toString())
+      .replace(/Hyderabad/g, activeCity);
 
     return this.executeLLM(prompt, () => {
       const cleanName = bookingData.customerName.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase();
@@ -763,6 +807,127 @@ export class AIService {
         shareMessage,
         referralCode,
         retentionHook
+      };
+    });
+  }
+
+  // 10. AI BELSOME Trust Score
+  static async getBelsomeScore(params: {
+    salonName: string;
+    procurementQuality: number;
+    staffExamScores: number;
+    bookingCompletionRate: number;
+    customerRating: number;
+  }, activeCity: string = "Hyderabad"): Promise<any> {
+    const prompt = prompts.BELSOME_SCORE_PROMPT
+      .replace("{salonName}", params.salonName)
+      .replace("{procurementQuality}", String(params.procurementQuality))
+      .replace("{staffExamScores}", String(params.staffExamScores))
+      .replace("{bookingCompletionRate}", String(params.bookingCompletionRate))
+      .replace("{customerRating}", String(params.customerRating))
+      .replace(/Hyderabad/g, activeCity);
+
+    return this.executeLLM(prompt, () => {
+      // Calculate overall score using formula
+      const rScore = params.customerRating * 20;
+      const score = Math.round(
+        (params.procurementQuality + params.staffExamScores + params.bookingCompletionRate + rScore) / 4
+      );
+
+      let level = "Accredited Premium";
+      if (score >= 90) level = "Elite Trust";
+      else if (score >= 80) level = "Gold Standard";
+      else if (score < 65) level = "Development Needed";
+
+      return {
+        score,
+        level,
+        summary: `AI Audit for ${params.salonName} shows a trust rating of ${score}/100. Operational metrics indicate solid customer loyalty combined with high exam compliance across the styling team in ${activeCity}.`,
+        breakdown: {
+          procurement: {
+            score: Math.round(params.procurementQuality),
+            feedback: `Procurement quality is rated at ${Math.round(params.procurementQuality)}% due to consistent clean beauty audits and eco-friendly packaging selection.`
+          },
+          staff: {
+            score: Math.round(params.staffExamScores),
+            feedback: `Staff certification compliance stands at ${Math.round(params.staffExamScores)}% representing highly trained stylists passing the behavioral exams.`
+          },
+          bookings: {
+            score: Math.round(params.bookingCompletionRate),
+            feedback: `The booking completion rate of ${Math.round(params.bookingCompletionRate)}% showcases low cancellation rates and high punctuality.`
+          },
+          rating: {
+            score: Math.round(rScore),
+            feedback: `Customer satisfaction remains high at ${params.customerRating.toFixed(1)}/5.0, reflecting strong overall salon reputation.`
+          }
+        },
+        recommendations: [
+          `Audit remaining low-scoring procurement proposals to transition to 100% certified clean vendors.`,
+          `Enroll team members in the BELSOME Client Retention Secrets course to bolster customer retention scores.`,
+          `Introduce off-peak booking promotions during morning weekdays to maintain slot fulfillment and lift completion rates.`
+        ]
+      };
+    });
+  }
+
+  // 11. AI Wedding Day Planner
+  static async getWeddingPlanner(params: {
+    date: string;
+    familyCount: number;
+    ceremonyType: string;
+  }, activeCity: string = "Hyderabad"): Promise<any> {
+    const prompt = prompts.WEDDING_PLANNER_PROMPT
+      .replace("{date}", params.date)
+      .replace("{familyCount}", String(params.familyCount))
+      .replace("{ceremonyType}", params.ceremonyType)
+      .replace(/Hyderabad/g, activeCity);
+
+    const stylistsInfo = CITY_STYLISTS[activeCity] || CITY_STYLISTS["Hyderabad"];
+
+    return this.executeLLM(prompt, () => {
+      // Mock Fallback
+      const family = Number(params.familyCount) || 3;
+      const totalCost = 15000 + (family * 2500);
+      const timeline = [
+        { id: "evt-1", time: "07:30 AM", event: `Bride makeup preparation at BELSOME by ${stylistsInfo.stylist2}`, status: "Upcoming" },
+        { id: "evt-2", time: "09:00 AM", event: `Bride hair styling and final touches by ${stylistsInfo.stylist2}`, status: "Upcoming" },
+        { id: "evt-3", time: "10:00 AM", event: `Groom haircut & beard grooming by ${stylistsInfo.stylist1}`, status: "Upcoming" }
+      ];
+
+      for (let i = 1; i <= family; i++) {
+        const time = `${10 + Math.floor(i / 2)}:${(i % 2) * 30 || "00"} AM`;
+        const stylist = i % 2 === 0 ? stylistsInfo.stylist3 : stylistsInfo.stylist1;
+        timeline.push({
+          id: `evt-${3 + i}`,
+          time,
+          event: `Family Member ${i} styling & standard trim by ${stylist}`,
+          status: "Upcoming"
+        });
+      }
+
+      timeline.push({
+        id: `evt-${4 + family}`,
+        time: "12:30 PM",
+        event: "Final coordinator walk-through and styling inspection",
+        status: "Upcoming"
+      });
+
+      const assignments = [
+        `Bride: Royal Bridal Makeover Pack by ${stylistsInfo.stylist2} - ₹15,000`,
+        `Groom: Executive Styling & Hair Sculpting by ${stylistsInfo.stylist1} - ₹2,500`
+      ];
+
+      for (let i = 1; i <= family; i++) {
+        const stylist = i % 2 === 0 ? stylistsInfo.stylist3 : stylistsInfo.stylist1;
+        assignments.push(`Family Member ${i}: Standard Party Styling by ${stylist} - ₹2,500`);
+      }
+
+      return {
+        timeline,
+        assignments,
+        roster: [stylistsInfo.stylist1, stylistsInfo.stylist2, stylistsInfo.stylist3],
+        totalCost,
+        b2bPitch: `AI Bridal Planner optimizes BELSOME salon inventory by cluster-assigning ${family} family guest slots alongside lead bride treatments, maximizing high-ticket booking margins by 42% on ${params.date}. Automated stylist load balancing reduces transition gaps to under 10 minutes.`
       };
     });
   }

@@ -3,13 +3,18 @@ import { AIService } from "../services/ai.service";
 
 export class AIController {
 
+  private static getActiveCity(req: Request): string {
+    return (req.headers["x-active-city"] || req.body.activeCity || "Hyderabad") as string;
+  }
+
   static async concierge(req: Request, res: Response) {
     try {
       const { query, history } = req.body;
       if (!query) {
         return res.status(400).json({ error: "Missing required parameter: query" });
       }
-      const data = await AIService.getGroomingConcierge(query, history);
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getGroomingConcierge(query, history, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[concierge] AI error:", error?.message);
@@ -25,7 +30,8 @@ export class AIController {
       if (!stylePref || !hairLength || !colorOpen || !occasion || !lifestyle) {
         return res.status(400).json({ error: "Missing required style DNA parameters" });
       }
-      const data = await AIService.getStyleDNA({ stylePref, hairLength, colorOpen, occasion, lifestyle });
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getStyleDNA({ stylePref, hairLength, colorOpen, occasion, lifestyle }, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[styleDNA] AI error:", error?.message);
@@ -41,7 +47,8 @@ export class AIController {
       if (!inputData) {
         return res.status(400).json({ error: "Missing required parameter: inputData" });
       }
-      const data = await AIService.getBeNextHero(inputData);
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getBeNextHero(inputData, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[beNextHero] AI error:", error?.message);
@@ -57,7 +64,8 @@ export class AIController {
       if (!styleProfile) {
         return res.status(400).json({ error: "Missing required parameter: styleProfile" });
       }
-      const data = await AIService.getLookFinder(styleProfile);
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getLookFinder(styleProfile, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[lookFinder] AI error:", error?.message);
@@ -73,9 +81,10 @@ export class AIController {
       if (!name || !brand || !certifications || cost === undefined || retail === undefined || budget === undefined || !prefBrands || marginGoal === undefined) {
         return res.status(400).json({ error: "Missing required parameters for procurement evaluation" });
       }
+      const activeCity = AIController.getActiveCity(req);
       const data = await AIService.getProcurementAnalysis({
         name, brand, certifications, cost, retail, budget, prefBrands, marginGoal
-      });
+      }, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[procurement] AI error:", error?.message);
@@ -91,7 +100,8 @@ export class AIController {
       if (!scenario || !language || !response) {
         return res.status(400).json({ error: "Missing required parameters for staff exam assessment" });
       }
-      const data = await AIService.evaluateBehavioralExam({ scenario, language, response });
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.evaluateBehavioralExam({ scenario, language, response }, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[behavioralExam] AI error:", error?.message);
@@ -107,7 +117,8 @@ export class AIController {
       if (!image || !mimeType) {
         return res.status(400).json({ error: "Missing required parameters: image and mimeType" });
       }
-      const data = await AIService.analyzeSelfie(image, mimeType, filename, clientAnalysis);
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.analyzeSelfie(image, mimeType, filename, clientAnalysis, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[analyzeSelfie] AI error:", error?.message);
@@ -123,7 +134,8 @@ export class AIController {
       if (peakSurge === undefined || offPeakDiscount === undefined) {
         return res.status(400).json({ error: "Missing required parameters: peakSurge and offPeakDiscount" });
       }
-      const data = await AIService.getPricingForecast(Number(peakSurge), Number(offPeakDiscount));
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getPricingForecast(Number(peakSurge), Number(offPeakDiscount), activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[pricingForecast] AI error:", error?.message);
@@ -139,6 +151,7 @@ export class AIController {
       if (!customerName || !serviceName || !stylistName || !salonName || !date || !timeSlot || finalPrice === undefined) {
         return res.status(400).json({ error: "Missing required booking details for share message generation" });
       }
+      const activeCity = AIController.getActiveCity(req);
       const data = await AIService.getShareMessage({
         customerName,
         serviceName,
@@ -147,10 +160,54 @@ export class AIController {
         date,
         timeSlot,
         finalPrice: Number(finalPrice)
-      });
+      }, activeCity);
       return res.json(data);
     } catch (error: any) {
       console.error("[generateShareMessage] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
+
+  static async belsomeScore(req: Request, res: Response) {
+    try {
+      const { salonName, procurementQuality, staffExamScores, bookingCompletionRate, customerRating } = req.body;
+      if (!salonName || procurementQuality === undefined || staffExamScores === undefined || bookingCompletionRate === undefined || customerRating === undefined) {
+        return res.status(400).json({ error: "Missing required parameters for BELSOME score calculation" });
+      }
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getBelsomeScore({
+        salonName,
+        procurementQuality: Number(procurementQuality),
+        staffExamScores: Number(staffExamScores),
+        bookingCompletionRate: Number(bookingCompletionRate),
+        customerRating: Number(customerRating)
+      }, activeCity);
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[belsomeScore] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
+
+  static async weddingPlanner(req: Request, res: Response) {
+    try {
+      const { date, familyCount, ceremonyType } = req.body;
+      if (!date || familyCount === undefined || !ceremonyType) {
+        return res.status(400).json({ error: "Missing required parameters for wedding day planning" });
+      }
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.getWeddingPlanner({
+        date,
+        familyCount: Number(familyCount),
+        ceremonyType
+      }, activeCity);
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[weddingPlanner] AI error:", error?.message);
       return res.status(500).json({
         error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
       });

@@ -1,4 +1,13 @@
+import { useBelsomeStore } from "../store/belsomeStore";
+
 const BACKEND_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api/ai";
+
+const CITY_STYLISTS: Record<string, { stylist1: string, stylist2: string, stylist3: string }> = {
+  Hyderabad: { stylist1: "Vikram Malhotra", stylist2: "Priya Rao", stylist3: "Suresh K." },
+  Bangalore: { stylist1: "Arjun Reddy", stylist2: "Kavya Nair", stylist3: "Rohan Sen" },
+  Mumbai: { stylist1: "Sameer Khan", stylist2: "Aisha Patel", stylist3: "Kabir Mehta" },
+  Delhi: { stylist1: "Rahul Sharma", stylist2: "Neha Kapoor", stylist3: "Amit Singh" },
+};
 
 export class ApiService {
   
@@ -47,12 +56,16 @@ export class ApiService {
   
   private static async request(endpoint: string, data: any): Promise<any> {
     let response;
+    const activeCity = useBelsomeStore.getState().activeCity || "Hyderabad";
     
     try {
       response = await fetch(`${BACKEND_URL}/${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        headers: { 
+          "Content-Type": "application/json",
+          "x-active-city": activeCity
+        },
+        body: JSON.stringify({ ...data, activeCity }),
         signal: AbortSignal.timeout(30000)
       });
     } catch (networkError) {
@@ -388,8 +401,27 @@ export class ApiService {
     return this.request("generate-share-message", bookingData);
   }
 
+  static async getBelsomeScore(data: {
+    salonName: string;
+    procurementQuality: number;
+    staffExamScores: number;
+    bookingCompletionRate: number;
+    customerRating: number;
+  }) {
+    return this.request("belsome-score", data);
+  }
+
+  static async getWeddingPlanner(data: {
+    date: string;
+    familyCount: number;
+    ceremonyType: string;
+  }) {
+    return this.request("wedding-planner", data);
+  }
+
   // Client-side fallback logic representing the exact matching intelligence of the backend.
-  private static async getClientSideMock(endpoint: string, data: any): Promise<any> {
+  static async getClientSideMock(endpoint: string, data: any): Promise<any> {
+    const activeCity = useBelsomeStore.getState().activeCity || "Hyderabad";
     switch (endpoint) {
       case "concierge": {
         const q = data.query.toLowerCase();
@@ -468,7 +500,7 @@ export class ApiService {
         }
 
         return {
-          reply,
+          reply: `Hello! Based on your query "${data.query}", we have curated a custom premium profile for you. We suggest styles that look professional yet modern, fitting ${activeCity}'s style scene.`,
           hairstyle: hair,
           beard: beard,
           color: "Natural Matte Black Highlights",
@@ -620,10 +652,11 @@ export class ApiService {
         if (scoreVikram === scoreSuresh) scoreVikram += 1;
         if (scorePriya === scoreSuresh) scorePriya += 1;
 
+        const stylistsInfo = CITY_STYLISTS[activeCity] || CITY_STYLISTS["Hyderabad"];
         const matches = [
-          { name: "Vikram Malhotra", specialty: "Master Hair Sculptor & Fade Specialist", matchPercentage: scoreVikram, reasoning: reasonVikram },
-          { name: "Priya Rao", specialty: "Celebrity Groomer & Hair Colorist", matchPercentage: scorePriya, reasoning: reasonPriya },
-          { name: "Suresh K.", specialty: "Natural Wave Artist & Spa Therapy Specialist", matchPercentage: scoreSuresh, reasoning: reasonSuresh }
+          { name: stylistsInfo.stylist1, specialty: "Master Hair Sculptor & Fade Specialist", matchPercentage: scoreVikram, reasoning: reasonVikram },
+          { name: stylistsInfo.stylist2, specialty: "Celebrity Groomer & Hair Colorist", matchPercentage: scorePriya, reasoning: reasonPriya },
+          { name: stylistsInfo.stylist3, specialty: "Natural Wave Artist & Spa Therapy Specialist", matchPercentage: scoreSuresh, reasoning: reasonSuresh }
         ];
 
         // Sort by matchPercentage descending
@@ -731,7 +764,7 @@ export class ApiService {
         let acc = ["Leather Belt (Zara)", "Signature Sandalwood cologne note"];
 
         if (p.includes("trendy") || p.includes("street") || p.includes("allu arjun") || p.includes("messy flow")) {
-          outfit = "Hyderabad Street Vibe";
+          outfit = `${activeCity} Street Vibe`;
           shirt = "Oversized Printed Cuban Collar Shirt (H&M)";
           trousers = "Relaxed-Fit Pleated Cargo Trousers (Zara)";
           shoes = "Vibe Chunky Retro Trainers (Zara)";
@@ -890,9 +923,14 @@ export class ApiService {
         let offPeakStatus = "OPTIMAL";
         const recs: string[] = [];
 
+        const premiumArea = activeCity === "Bangalore" ? "Indiranagar" :
+                            activeCity === "Mumbai" ? "Bandra" :
+                            activeCity === "Delhi" ? "Connaught Place" :
+                            "Jubilee Hills";
+
         if (peakSurge > 25) {
           surgeStatus = "TOO_HIGH";
-          recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in Jubilee Hills may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
+          recs.push(`At +${peakSurge}%, surge pricing is in the high-attrition zone. Premium clients in ${premiumArea} may perceive this as price-gouging, leading to a projected booking drop of ${Math.round((1 - attritionFactor) * 100)}%.`);
         } else if (peakSurge < 15) {
           surgeStatus = "TOO_LOW";
           recs.push(`A +${peakSurge}% peak surge is conservative. Weekend occupancy remains at 95%+, meaning you are leaving high-margin revenue on the table. We recommend raising this to at least +15%.`);
@@ -967,6 +1005,102 @@ export class ApiService {
           accessory: "none",
           hairColor: "#1A1A1A",
           confidence: 85
+        };
+      }
+
+      case "belsome-score": {
+        const rScore = data.customerRating * 20;
+        const score = Math.round(
+          (data.procurementQuality + data.staffExamScores + data.bookingCompletionRate + rScore) / 4
+        );
+
+        let level = "Accredited Premium";
+        if (score >= 90) level = "Elite Trust";
+        else if (score >= 80) level = "Gold Standard";
+        else if (score < 65) level = "Development Needed";
+
+        return {
+          score,
+          level,
+          summary: `AI Audit for ${data.salonName} shows a trust rating of ${score}/100. Operational metrics indicate solid customer loyalty combined with high exam compliance across the styling team in ${activeCity}. (Running in Offline/Mock mode)`,
+          breakdown: {
+            procurement: {
+              score: Math.round(data.procurementQuality),
+              feedback: `Procurement quality is rated at ${Math.round(data.procurementQuality)}% due to consistent clean beauty audits and eco-friendly packaging selection.`
+            },
+            staff: {
+              score: Math.round(data.staffExamScores),
+              feedback: `Staff certification compliance stands at ${Math.round(data.staffExamScores)}% representing highly trained stylists passing the behavioral exams.`
+            },
+            bookings: {
+              score: Math.round(data.bookingCompletionRate),
+              feedback: `The booking completion rate of ${Math.round(data.bookingCompletionRate)}% showcases low cancellation rates and high punctuality.`
+            },
+            rating: {
+              score: Math.round(rScore),
+              feedback: `Customer satisfaction remains high at ${data.customerRating.toFixed(1)}/5.0, reflecting strong overall salon reputation.`
+            }
+          },
+          recommendations: [
+            `Audit remaining low-scoring procurement proposals to transition to 100% certified clean vendors.`,
+            `Enroll team members in the BELSOME Client Retention Secrets course to bolster customer retention scores.`,
+            `Introduce off-peak booking promotions during morning weekdays to maintain slot fulfillment and lift completion rates.`
+          ]
+        };
+      }
+
+      case "wedding-planner": {
+        const CITY_STYLISTS_MOCK: Record<string, { stylist1: string, stylist2: string, stylist3: string }> = {
+          Hyderabad: { stylist1: "Vikram Malhotra", stylist2: "Priya Rao", stylist3: "Suresh K." },
+          Bangalore: { stylist1: "Arjun Reddy", stylist2: "Kavya Nair", stylist3: "Rohan Sen" },
+          Mumbai: { stylist1: "Sameer Khan", stylist2: "Aisha Patel", stylist3: "Kabir Mehta" },
+          Delhi: { stylist1: "Rahul Sharma", stylist2: "Neha Kapoor", stylist3: "Amit Singh" },
+        };
+        
+        const stylistsInfo = CITY_STYLISTS_MOCK[activeCity] || CITY_STYLISTS_MOCK["Hyderabad"];
+        const family = Number(data.familyCount) || 3;
+        const totalCost = 15000 + (family * 2500);
+        
+        const timeline = [
+          { id: "evt-1", time: "07:30 AM", event: `Bride makeup preparation at BELSOME by ${stylistsInfo.stylist2}`, status: "Upcoming" },
+          { id: "evt-2", time: "09:00 AM", event: `Bride hair styling and final touches by ${stylistsInfo.stylist2}`, status: "Upcoming" },
+          { id: "evt-3", time: "10:00 AM", event: `Groom haircut & beard grooming by ${stylistsInfo.stylist1}`, status: "Upcoming" }
+        ];
+
+        for (let i = 1; i <= family; i++) {
+          const time = `${10 + Math.floor(i / 2)}:${(i % 2) * 30 || "00"} AM`;
+          const stylist = i % 2 === 0 ? stylistsInfo.stylist3 : stylistsInfo.stylist1;
+          timeline.push({
+            id: `evt-${3 + i}`,
+            time,
+            event: `Family Member ${i} styling & standard trim by ${stylist}`,
+            status: "Upcoming"
+          });
+        }
+
+        timeline.push({
+          id: `evt-${4 + family}`,
+          time: "12:30 PM",
+          event: "Final coordinator walk-through and styling inspection",
+          status: "Upcoming"
+        });
+
+        const assignments = [
+          `Bride: Royal Bridal Makeover Pack by ${stylistsInfo.stylist2} - ₹15,000`,
+          `Groom: Executive Styling & Hair Sculpting by ${stylistsInfo.stylist1} - ₹2,500`
+        ];
+
+        for (let i = 1; i <= family; i++) {
+          const stylist = i % 2 === 0 ? stylistsInfo.stylist3 : stylistsInfo.stylist1;
+          assignments.push(`Family Member ${i}: Standard Party Styling by ${stylist} - ₹2,500`);
+        }
+
+        return {
+          timeline,
+          assignments,
+          roster: [stylistsInfo.stylist1, stylistsInfo.stylist2, stylistsInfo.stylist3],
+          totalCost,
+          b2bPitch: `AI Bridal Planner optimizes BELSOME salon inventory by cluster-assigning ${family} family guest slots alongside lead bride treatments, maximizing high-ticket booking margins by 42% on ${data.date}. Automated stylist load balancing reduces transition gaps to under 10 minutes. (Mock Mode)`
         };
       }
 
