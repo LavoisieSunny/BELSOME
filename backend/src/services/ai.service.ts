@@ -19,7 +19,7 @@ async function executeLLM(prompt: string, fallbackMock: () => any): Promise<any>
   // ── Gemini path (primary, free) ──
   if (gemini) {
     try {
-      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" }, { timeout: 8000 });
       const result = await model.generateContent(
         prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no backticks, no extra text."
       );
@@ -44,7 +44,7 @@ async function executeLLMVision(
   if (gemini) {
     try {
       // ✅ FIX 1: Use gemini-2.5-flash (latest, free, better vision support)
-      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" }, { timeout: 8000 });
 
       // ✅ FIX 2: Clean base64 BEFORE building the part
       let { data, mimeType } = imagePart.inlineData;
@@ -74,7 +74,11 @@ async function executeLLMVision(
       return fallbackMock();
     }
   }
+
+  // ── No keys — use mock ──
+  return fallbackMock();
 }
+
 
 const CITY_STYLISTS: Record<string, { stylist1: string, stylist2: string, stylist3: string }> = {
   Hyderabad: { stylist1: "Vikram Malhotra", stylist2: "Priya Rao", stylist3: "Suresh K." },
