@@ -14,5 +14,6 @@ router.post("/pricing-forecast", AIController.pricingForecast);
 router.post("/generate-share-message", AIController.generateShareMessage);
 router.post("/belsome-score", AIController.belsomeScore);
 router.post("/wedding-planner", AIController.weddingPlanner);
+router.post("/price-reasoning", AIController.priceReasoning);
 
 export default router;

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { Sparkles, Calendar, Star, CheckCircle, Clock, BookOpen, Upload, Award, ShieldCheck, RefreshCcw } from "lucide-react";
+import AIReasoning from "../components/AIReasoning";
 
 export default function StylistDashboard() {
   const { stylists, appointments, completeAppointment } = useBelsomeStore();
@@ -529,9 +530,15 @@ export default function StylistDashboard() {
                 <BookOpen className="w-4 h-4 text-purple-600" />
                 Assessor General Feedback Memo
               </h4>
-              <p className="leading-relaxed">
-                Candidate excels in multilingual client handling, demonstrating a calm demeanor under pressure and high empathetic validation. Successfully addresses product inventory objections by pivoting to paraben-free organic alternatives.
-              </p>
+              <div className="pt-2">
+                <AIReasoning
+                  bullets={[
+                    "Candidate excels in multilingual client handling, demonstrating a calm demeanor under pressure and high empathetic validation.",
+                    "Successfully addresses product inventory objections by pivoting to paraben-free organic alternatives."
+                  ]}
+                  label="Why this result?"
+                />
+              </div>
             </div>
           </div>
         )}

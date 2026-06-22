@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { ApiService } from "../services/api";
 
 // Types definition
 export interface Toast {
@@ -19,6 +20,7 @@ export interface Stylist {
   beforeAfter: { before: string; after: string }[];
   aiScore: number;
   reviewsCount: number;
+  city?: string;
 }
 
 export interface Salon {
@@ -31,6 +33,7 @@ export interface Salon {
   maxPrice: number;
   peakSurge: number; // percentage, e.g. 15 for 15%
   offPeakDiscount: number; // percentage, e.g. 20 for 20%
+  city?: string;
 }
 
 export interface Service {
@@ -58,6 +61,7 @@ export interface Appointment {
   finalPrice: number;
   status: "Upcoming" | "Completed" | "Cancelled";
   pricingReason: string;
+  city?: string;
 }
 
 export interface VendorProduct {
@@ -101,6 +105,7 @@ export interface CorporateAccount {
   totalEmployees: number;
   allocatedCredits: number;
   usedCredits: number;
+  city?: string;
 }
 
 interface BelsomeState {
@@ -120,6 +125,16 @@ interface BelsomeState {
   activeCity: string;
   toasts: Toast[];
 
+  // Database raw caches (unfiltered)
+  rawSalons: Salon[];
+  rawStylists: Stylist[];
+  rawAppointments: Appointment[];
+  rawCorporateAccounts: CorporateAccount[];
+
+  // Database loading flags
+  dataLoaded: boolean;
+  dataLoading: boolean;
+
   // Actions
   addAppointment: (appointment: Omit<Appointment, "id" | "status">) => void;
   completeAppointment: (id: string) => void;
@@ -133,6 +148,17 @@ interface BelsomeState {
   changeActiveCity: (city: string) => void;
   addToast: (message: string, type?: Toast["type"]) => void;
   removeToast: (id: string) => void;
+
+  // Supabase Fetching Actions
+  fetchStylists: () => Promise<void>;
+  fetchSalons: () => Promise<void>;
+  fetchServices: () => Promise<void>;
+  fetchAppointments: () => Promise<void>;
+  fetchVendorProducts: () => Promise<void>;
+  fetchExamAttempts: () => Promise<void>;
+  fetchWeddingProjects: () => Promise<void>;
+  fetchCorporateAccounts: () => Promise<void>;
+  fetchAllData: () => Promise<void>;
 }
 
 // Helper to generate dynamic look image URLs
@@ -382,7 +408,7 @@ export const CITY_CONFIGS: Record<string, {
 
 export const useBelsomeStore = create<BelsomeState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state maps to Hyderabad configuration
       salons: CITY_CONFIGS.Hyderabad.salons,
       stylists: CITY_CONFIGS.Hyderabad.stylists,
@@ -427,39 +453,106 @@ export const useBelsomeStore = create<BelsomeState>()(
       activeCity: "Hyderabad",
       toasts: [],
 
+      rawSalons: [],
+      rawStylists: [],
+      rawAppointments: [],
+      rawCorporateAccounts: [],
+      dataLoaded: false,
+      dataLoading: false,
+
       // Mutations
-      addAppointment: (appointment) => set((state) => {
-        const id = `appt-${state.appointments.length + 1}`;
-        const newAppt: Appointment = {
+      addAppointment: async (appointment) => {
+        const activeCity = get().activeCity;
+        const newApptData = {
           ...appointment,
-          id,
-          status: "Upcoming"
+          status: "Upcoming" as const,
+          city: activeCity
         };
-        return {
-          appointments: [newAppt, ...state.appointments]
+
+        // Optimistically update frontend state first to keep it instant
+        const tempId = `appt-temp-${Date.now()}`;
+        const tempAppt: Appointment = { ...newApptData, id: tempId };
+        set((state) => ({
+          appointments: [tempAppt, ...state.appointments],
+          rawAppointments: [tempAppt, ...state.rawAppointments]
+        }));
+
+        try {
+          const savedAppt = await ApiService.createAppointment(newApptData);
+          // Replace temp record with the saved record containing real UUID
+          set((state) => ({
+            appointments: state.appointments.map(a => a.id === tempId ? savedAppt : a),
+            rawAppointments: state.rawAppointments.map(a => a.id === tempId ? savedAppt : a)
+          }));
+        } catch (err: any) {
+          console.error("createAppointment API failed, keeping local-only record:", err);
+          set((state) => ({
+            appointments: state.appointments.map(a => a.id === tempId ? { ...a, id: `appt-${state.appointments.length}` } : a),
+            rawAppointments: state.rawAppointments.map(a => a.id === tempId ? { ...a, id: `appt-${state.rawAppointments.length}` } : a)
+          }));
+        }
+      },
+
+      completeAppointment: async (id) => {
+        // Optimistically update status to Completed
+        set((state) => ({
+          appointments: state.appointments.map((appt) =>
+            appt.id === id ? { ...appt, status: "Completed" as const } : appt
+          ),
+          rawAppointments: state.rawAppointments.map((appt) =>
+            appt.id === id ? { ...appt, status: "Completed" as const } : appt
+          )
+        }));
+        try {
+          await ApiService.updateAppointmentStatus(id, "Completed");
+        } catch (err: any) {
+          console.error("completeAppointment API failed, state kept locally:", err);
+        }
+      },
+
+      addVendorProduct: async (product) => {
+        const newProdData = {
+          ...product,
+          status: "REVIEW" as const,
+          explanation: product.explanation || "Listed via Vendor portal."
         };
-      }),
+        const tempId = `prod-temp-${Date.now()}`;
+        const tempProd: VendorProduct = { ...newProdData, id: tempId };
+        set((state) => ({
+          vendorProducts: [tempProd, ...state.vendorProducts]
+        }));
+        try {
+          const savedProd = await ApiService.createProduct(product);
+          set((state) => ({
+            vendorProducts: state.vendorProducts.map(p => p.id === tempId ? savedProd : p)
+          }));
+        } catch (err: any) {
+          console.error("createProduct API failed, keeping local-only record:", err);
+          set((state) => ({
+            vendorProducts: state.vendorProducts.map(p => p.id === tempId ? { ...p, id: `prod-${state.vendorProducts.length}` } : p)
+          }));
+        }
+      },
 
-      completeAppointment: (id) => set((state) => ({
-        appointments: state.appointments.map((appt) =>
-          appt.id === id ? { ...appt, status: "Completed" as const } : appt
-        )
-      })),
-
-      addVendorProduct: (product) => set((state) => {
-        const id = `prod-${state.vendorProducts.length + 1}`;
-        return {
-          vendorProducts: [{ ...product, id }, ...state.vendorProducts]
-        };
-      }),
-
-      addExamAttempt: (attempt) => set((state) => {
-        const id = `ex-${state.examAttempts.length + 1}`;
+      addExamAttempt: async (attempt) => {
         const date = new Date().toISOString().split("T")[0];
-        return {
-          examAttempts: [{ ...attempt, id, date }, ...state.examAttempts]
-        };
-      }),
+        const tempId = `ex-temp-${Date.now()}`;
+        const tempExam: ExamAttempt = { ...attempt, id: tempId, date };
+        set((state) => ({
+          examAttempts: [tempExam, ...state.examAttempts]
+        }));
+        try {
+          const savedExam = await ApiService.createAttempt({ ...attempt, date });
+          set((state) => ({
+            examAttempts: state.examAttempts.map(e => e.id === tempId ? savedExam : e)
+          }));
+        } catch (err: any) {
+          console.error("createAttempt API failed, keeping local-only record:", err);
+          set((state) => ({
+            examAttempts: state.examAttempts.map(e => e.id === tempId ? { ...e, id: `ex-${state.examAttempts.length}` } : e)
+          }));
+        }
+      },
 
       updateWeddingProject: (project) => set((state) => ({
         weddingProjects: state.weddingProjects.map((p) => p.id === project.id ? project : p)
@@ -487,16 +580,29 @@ export const useBelsomeStore = create<BelsomeState>()(
 
       changeActiveCity: (city) => set((state) => {
         const config = CITY_CONFIGS[city] || CITY_CONFIGS["Hyderabad"];
+        
+        let salons = config.salons;
+        let stylists = config.stylists;
+        let corporateAccounts = config.corporateAccounts;
+        let appointments = config.appointments;
+
+        if (state.dataLoaded) {
+          if (state.rawSalons.length > 0) salons = state.rawSalons.filter(s => s.city === city);
+          if (state.rawStylists.length > 0) stylists = state.rawStylists.filter(s => s.city === city);
+          if (state.rawCorporateAccounts.length > 0) corporateAccounts = state.rawCorporateAccounts.filter(c => c.city === city);
+          if (state.rawAppointments.length > 0) appointments = state.rawAppointments.filter(a => a.city === city);
+        }
+
         // Dynamically map wedding project vendors to local stylists
         const updatedWeddingProjects = state.weddingProjects.map((proj) => {
           return {
             ...proj,
             bookedVendors: proj.bookedVendors.map((vendor) => {
               if (vendor.role === "Makeup Artist" && vendor.name.includes("BELSOME")) {
-                return { ...vendor, name: `${config.stylists[1].name} (BELSOME)` };
+                return { ...vendor, name: `${stylists[1]?.name || "Priya Rao"} (BELSOME)` };
               }
               if (vendor.role === "Hair Stylist" && (vendor.name.includes("Vikram") || vendor.name.includes("Arjun") || vendor.name.includes("Sameer") || vendor.name.includes("Rahul"))) {
-                return { ...vendor, name: config.stylists[0].name };
+                return { ...vendor, name: stylists[0]?.name || "Vikram Malhotra" };
               }
               return vendor;
             })
@@ -505,10 +611,10 @@ export const useBelsomeStore = create<BelsomeState>()(
 
         return {
           activeCity: city,
-          salons: config.salons,
-          stylists: config.stylists,
-          corporateAccounts: config.corporateAccounts,
-          appointments: config.appointments,
+          salons,
+          stylists,
+          corporateAccounts,
+          appointments,
           weddingProjects: updatedWeddingProjects
         };
       }),
@@ -530,7 +636,125 @@ export const useBelsomeStore = create<BelsomeState>()(
 
       removeToast: (id) => set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id)
-      }))
+      })),
+
+      fetchStylists: async () => {
+        try {
+          const data = await ApiService.getStylists();
+          const activeCity = get().activeCity;
+          set({
+            rawStylists: data,
+            stylists: data.filter((s: Stylist) => s.city === activeCity)
+          });
+        } catch (err: any) {
+          console.error("fetchStylists failed:", err);
+          get().addToast("Failed to fetch stylists from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchSalons: async () => {
+        try {
+          const data = await ApiService.getSalons();
+          const activeCity = get().activeCity;
+          set({
+            rawSalons: data,
+            salons: data.filter((s: Salon) => s.city === activeCity)
+          });
+        } catch (err: any) {
+          console.error("fetchSalons failed:", err);
+          get().addToast("Failed to fetch salons from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchServices: async () => {
+        try {
+          const data = await ApiService.getServices();
+          set({ services: data });
+        } catch (err: any) {
+          console.error("fetchServices failed:", err);
+          get().addToast("Failed to fetch services from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchAppointments: async () => {
+        try {
+          const data = await ApiService.getAppointments();
+          const activeCity = get().activeCity;
+          set({
+            rawAppointments: data,
+            appointments: data.filter((a: Appointment) => a.city === activeCity)
+          });
+        } catch (err: any) {
+          console.error("fetchAppointments failed:", err);
+          get().addToast("Failed to fetch appointments from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchVendorProducts: async () => {
+        try {
+          const data = await ApiService.getVendorProducts();
+          set({ vendorProducts: data });
+        } catch (err: any) {
+          console.error("fetchVendorProducts failed:", err);
+          get().addToast("Failed to fetch vendor products from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchExamAttempts: async () => {
+        try {
+          const data = await ApiService.getExamAttempts();
+          set({ examAttempts: data });
+        } catch (err: any) {
+          console.error("fetchExamAttempts failed:", err);
+          get().addToast("Failed to fetch exam attempts from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchWeddingProjects: async () => {
+        try {
+          const data = await ApiService.getWeddingProject('90000000-0000-0000-0000-000000000001');
+          set({ weddingProjects: [data] });
+        } catch (err: any) {
+          console.error("fetchWeddingProjects failed:", err);
+          get().addToast("Failed to fetch wedding project from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchCorporateAccounts: async () => {
+        try {
+          const data = await ApiService.getCorporateAccounts();
+          const activeCity = get().activeCity;
+          set({
+            rawCorporateAccounts: data,
+            corporateAccounts: data.filter((c: CorporateAccount) => c.city === activeCity)
+          });
+        } catch (err: any) {
+          console.error("fetchCorporateAccounts failed:", err);
+          get().addToast("Failed to fetch corporate accounts from Supabase. Falling back to mock data.", "error");
+        }
+      },
+
+      fetchAllData: async () => {
+        if (get().dataLoaded) return;
+        set({ dataLoading: true });
+        try {
+          await Promise.all([
+            get().fetchStylists(),
+            get().fetchSalons(),
+            get().fetchServices(),
+            get().fetchAppointments(),
+            get().fetchVendorProducts(),
+            get().fetchExamAttempts(),
+            get().fetchWeddingProjects(),
+            get().fetchCorporateAccounts()
+          ]);
+          set({ dataLoaded: true });
+        } catch (err: any) {
+          console.error("fetchAllData failed:", err);
+        } finally {
+          set({ dataLoading: false });
+        }
+      }
     }),
     { name: "belsome-store" }
   )

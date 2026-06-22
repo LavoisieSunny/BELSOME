@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
 import GlowHeatmap from "../components/GlowHeatmap";
+import AIReasoning from "../components/AIReasoning";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   MapPin, ShoppingBag, Timer, CheckCircle, RefreshCcw, ShieldCheck, Scissors, Sliders,
-  Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download, Share2, Copy, Check
+  Calendar, Sparkles, Play, Award, Star, Upload, Tag, Download, Share2, Copy, Check,
+  Brain
 } from "lucide-react";
 
 interface StyleItem {
@@ -391,6 +394,8 @@ export default function CustomerDashboard() {
 
   // Booking Flow State
   const [bookingStep, setBookingStep] = useState(1);
+  const [priceRevealState, setPriceRevealState] = useState<"idle" | "analyzing" | "revealed">("idle");
+  const [pricingReasoningBullets, setPricingReasoningBullets] = useState<string[]>([]);
   const [selectedSalon, setSelectedSalon] = useState(salons[0].id);
   const [selectedService, setSelectedService] = useState(services[0].id);
   const [selectedStylist, setSelectedStylist] = useState(stylists[0].id);
@@ -453,6 +458,12 @@ export default function CustomerDashboard() {
       active = false;
     };
   }, [confirmedBooking]);
+
+  useEffect(() => {
+    if (bookingStep !== 4) {
+      setPriceRevealState("idle");
+    }
+  }, [bookingStep]);
 
   // Style DNA Quiz State
   const [quizStep, setQuizStep] = useState(0); // 0 = start, 1-5 = questions, 6 = result
@@ -1202,21 +1213,129 @@ export default function CustomerDashboard() {
                   
                   <div className="h-px bg-slate-200 my-2" />
 
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center bg-white/40 dark:bg-slate-950/20 p-3 rounded-lg border border-slate-100 dark:border-slate-800/60">
                     <div>
-                      <span className="text-xs text-slate-500 block font-mono font-bold leading-none">Pricing Reason</span>
-                      <span className={`text-[10px] font-bold ${
-                        priceCalculation.finalPrice < priceCalculation.originalPrice ? "text-green-600" : "text-amber-600"
-                      }`}>
-                        {priceCalculation.reason}
-                      </span>
+                      <span className="text-xs text-slate-500 font-mono font-bold leading-none block mb-1">Pricing Ratio</span>
+                      {priceCalculation.finalPrice < priceCalculation.originalPrice ? (
+                        <span className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                          Off-Peak Discount Applied
+                        </span>
+                      ) : priceCalculation.finalPrice > priceCalculation.originalPrice ? (
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          Peak Demand Surge Applied
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded border border-slate-500/10">
+                          Standard Base Rate
+                        </span>
+                      )}
                     </div>
                     <div className="text-right">
                       {priceCalculation.finalPrice !== priceCalculation.originalPrice && (
-                        <span className="text-xs text-slate-400 line-through block leading-none">₹{priceCalculation.originalPrice}</span>
+                        <span className="text-xs text-slate-400 line-through block leading-none mb-1">₹{priceCalculation.originalPrice}</span>
                       )}
-                      <span className="text-xl font-extrabold text-slate-900 font-mono">₹{priceCalculation.finalPrice}</span>
+                      <span className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono">₹{priceCalculation.finalPrice}</span>
                     </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <AnimatePresence mode="wait">
+                      {priceRevealState === "idle" && (
+                        <motion.div
+                          key="idle"
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 4 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setPriceRevealState("analyzing");
+                              const fallbackBullets = [
+                                priceCalculation.reason,
+                                priceCalculation.finalPrice < priceCalculation.originalPrice 
+                                  ? "Off-peak booking slot has lower stylist queue sizes."
+                                  : priceCalculation.finalPrice > priceCalculation.originalPrice
+                                  ? "High salon congestion levels detected during peak hours."
+                                  : "Standard base rate matching current demand levels.",
+                                priceCalculation.finalPrice < priceCalculation.originalPrice
+                                  ? "Dynamic system discount applied to balance salon load."
+                                  : priceCalculation.finalPrice > priceCalculation.originalPrice
+                                  ? "Surge price supports priority booking slot reservation."
+                                  : "Eco-billing system validation complete."
+                              ];
+
+                              try {
+                                const apiCall = ApiService.getPriceReasoning({
+                                  salonId: selectedSalon,
+                                  serviceId: selectedService,
+                                  date: bookingDate,
+                                  timeSlot: bookingTime,
+                                  originalPrice: priceCalculation.originalPrice,
+                                  finalPrice: priceCalculation.finalPrice
+                                });
+
+                                const timeout = new Promise((_, reject) => 
+                                  setTimeout(() => reject(new Error("API timeout of 3s exceeded")), 3000)
+                                );
+
+                                const result = await Promise.race([apiCall, timeout]) as { reasoning: string[] };
+                                if (result && Array.isArray(result.reasoning) && result.reasoning.length > 0) {
+                                  setPricingReasoningBullets(result.reasoning);
+                                } else {
+                                  setPricingReasoningBullets(fallbackBullets);
+                                }
+                              } catch (err) {
+                                console.warn("AI pricing reasoning failed or timed out. Falling back to static values.", err);
+                                setPricingReasoningBullets(fallbackBullets);
+                              } finally {
+                                setPriceRevealState("revealed");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors bg-purple-50 dark:bg-purple-950/30 px-3 py-1.5 rounded-lg border border-purple-100 dark:border-purple-900/30 shadow-sm"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                            <span>See why this price</span>
+                          </button>
+                        </motion.div>
+                      )}
+
+                      {priceRevealState === "analyzing" && (
+                        <motion.div
+                          key="analyzing"
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 4 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 font-mono py-1"
+                        >
+                          <Brain className="w-4 h-4 text-pink-500 animate-pulse" />
+                          <span>AI Auditor calculating pricing drivers</span>
+                          <span className="flex gap-1 items-center pl-0.5">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </span>
+                        </motion.div>
+                      )}
+
+                      {priceRevealState === "revealed" && (
+                        <motion.div
+                          key="revealed"
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="w-full text-left"
+                        >
+                          <AIReasoning
+                            bullets={pricingReasoningBullets}
+                            label="Price Breakdown Justification"
+                            defaultOpen={true}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 

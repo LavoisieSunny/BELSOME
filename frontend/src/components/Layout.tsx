@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useBelsomeStore } from "../store/belsomeStore";
-import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock, Sun, Moon, CheckCircle, AlertCircle, Info, X } from "lucide-react";
+import { MessageSquare, Users, User, ShieldAlert, Award, ShoppingBag, Briefcase, QrCode, Sparkles, Send, Lock, Sun, Moon, CheckCircle, AlertCircle, Info, X, TrendingUp } from "lucide-react";
 
 const getNearestCity = (lat: number, lon: number) => {
   const cities = [
@@ -23,7 +23,11 @@ const getNearestCity = (lat: number, lon: number) => {
 };
 
 export default function AppLayout() {
-  const { userRole, changeUserRole, toasts, removeToast, activeCity, changeActiveCity, addToast } = useBelsomeStore();
+  const { userRole, changeUserRole, toasts, removeToast, activeCity, changeActiveCity, addToast, fetchAllData, dataLoading } = useBelsomeStore();
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
   const navigate = useNavigate();
   const location = useLocation();
   const [whatsappOpen, setWhatsappOpen] = useState(false);
@@ -147,6 +151,14 @@ export default function AppLayout() {
         {/* Navigation Indicator / Actions */}
         <div className="flex items-center gap-4">
           <button
+            onClick={() => navigate("/city-pulse")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-extrabold font-mono tracking-wider uppercase transition-all shadow-md shadow-pink-500/25 hover:scale-105 active:scale-95"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>See live trends</span>
+          </button>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <button
             onClick={() => navigate("/")}
             className={`px-4 py-1.5 rounded-lg text-sm transition-all border ${
               location.pathname === "/"
@@ -246,7 +258,7 @@ export default function AppLayout() {
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all border shrink-0 ${
                   isActive
                     ? "bg-gradient-to-r from-brand-primary to-brand-secondary border-none text-white shadow-md shadow-brand-primary/20 scale-105"
-                    : "bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
+                    : "bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : role.color}`} />
@@ -254,12 +266,44 @@ export default function AppLayout() {
               </button>
             );
           })}
+          
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2 shrink-0" />
+          <button
+            onClick={() => navigate("/city-pulse")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all border shrink-0 ${
+              location.pathname === "/city-pulse"
+                ? "bg-gradient-to-r from-brand-primary to-brand-secondary border-none text-white shadow-md shadow-brand-primary/20 scale-105"
+                : "bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700"
+            }`}
+          >
+            <TrendingUp className={`w-3.5 h-3.5 ${location.pathname === "/city-pulse" ? "text-white" : "text-pink-600"}`} />
+            City Pulse
+          </button>
         </div>
       </div>
 
       {/* Main Outlet */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 z-20">
-        {isAuthorized ? <Outlet /> : <DashboardLoginGate required={currentRestricted!} />}
+        {dataLoading ? (
+          <div className="space-y-6 animate-pulse" id="loading-skeleton">
+            {/* Header placeholder */}
+            <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-1/3"></div>
+            
+            {/* 3 Columns metrics placeholder */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="h-44 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"></div>
+              <div className="h-44 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"></div>
+              <div className="h-44 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/40 dark:border-slate-800/40"></div>
+            </div>
+            
+            {/* Big list/details block placeholder */}
+            <div className="h-72 bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/40 dark:border-slate-800/40 w-full"></div>
+          </div>
+        ) : isAuthorized ? (
+          <Outlet />
+        ) : (
+          <DashboardLoginGate required={currentRestricted!} />
+        )}
       </main>
 
       {/* Footer */}

@@ -213,4 +213,28 @@ export class AIController {
       });
     }
   }
+
+  static async priceReasoning(req: Request, res: Response) {
+    try {
+      const { salonId, serviceId, date, timeSlot, originalPrice, finalPrice } = req.body;
+      if (!salonId || !serviceId || !date || !timeSlot || originalPrice === undefined || finalPrice === undefined) {
+        return res.status(400).json({ error: "Missing required price reasoning parameters" });
+      }
+      const activeCity = AIController.getActiveCity(req);
+      const data = await AIService.generatePriceReasoning({
+        salonId,
+        serviceId,
+        date,
+        timeSlot,
+        originalPrice: Number(originalPrice),
+        finalPrice: Number(finalPrice)
+      }, activeCity);
+      return res.json(data);
+    } catch (error: any) {
+      console.error("[priceReasoning] AI error:", error?.message);
+      return res.status(500).json({
+        error: error?.message ?? "AI service unavailable. Check your GEMINI_API_KEY in backend/.env"
+      });
+    }
+  }
 }

@@ -531,3 +531,29 @@ Return ONLY this JSON — no markdown, no backticks, no extra text:
   "b2bPitch": "..."
 }
 `;
+
+export const PRICING_REASONING_PROMPT = `
+You are the BELSOME AI Pricing Engine Auditor.
+Explain why a customer's final price was calculated for their grooming appointment.
+
+Appointment context:
+- Salon Name: {salonName}
+- Date: {date}
+- Time Slot: {timeSlot}
+- Current bookings in this slot: {bookingCount}
+- Original Service Price: ₹{originalPrice}
+- Final Calculated Price: ₹{finalPrice}
+- Salon Peak Surge Rate: +{peakSurge}%
+- Salon Off-Peak Discount Rate: -{offPeakDiscount}%
+
+Provide a concise, professional explanation in 2-3 short, high-end bullet points detailing why the final price is different or same as the original price based on current density, peak surge, or off-peak discount. Keep it dapper, luxury-focused, and transparent.
+
+Return ONLY a JSON object containing a "reasoning" key mapped to an array of 2-3 strings. No markdown, no backticks, no extra text:
+{
+  "reasoning": [
+    "...",
+    "...",
+    "..."
+  ]
+}
+`;

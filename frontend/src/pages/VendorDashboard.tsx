@@ -2,6 +2,16 @@ import React, { useState } from "react";
 import { useBelsomeStore } from "../store/belsomeStore";
 import { ApiService } from "../services/api";
 import { ShoppingBag, PlusCircle, AlertCircle, CheckCircle2, TrendingUp, RefreshCcw } from "lucide-react";
+import AIReasoning from "../components/AIReasoning";
+
+const getExplanationBullets = (explanation: string) => {
+  if (!explanation) return ["No audit explanation provided."];
+  return explanation
+    .split(/[.!?]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s + ".");
+};
 
 export default function VendorDashboard() {
   const { vendorProducts, addVendorProduct, activeCity } = useBelsomeStore();
@@ -216,9 +226,13 @@ export default function VendorDashboard() {
                 </div>
               </div>
               <div className="h-px bg-slate-200" />
-              <p className="text-[11px] text-slate-600 leading-normal font-sans font-semibold">
-                <strong>AI Audit Feedback:</strong> {lastResult.explanation}
-              </p>
+              <div className="text-[11px] text-slate-650 leading-normal font-sans font-semibold flex items-center gap-2">
+                <strong>AI Audit Feedback:</strong>
+                <AIReasoning
+                  bullets={getExplanationBullets(lastResult.explanation)}
+                  label="Why this score?"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -245,7 +259,12 @@ export default function VendorDashboard() {
                   <span>Retail: <strong>₹{p.retail}</strong></span>
                   <span>Profit Margin: <strong className="text-teal-600">{p.margin}%</strong></span>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-normal font-semibold">{p.explanation}</p>
+                <div className="pt-1 text-left">
+                  <AIReasoning
+                    bullets={getExplanationBullets(p.explanation)}
+                    label="Why this score?"
+                  />
+                </div>
               </div>
             ))}
           </div>

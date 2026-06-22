@@ -1108,4 +1108,99 @@ export class ApiService {
         return { message: "Mock endpoint not found." };
     }
   }
+
+  static async restRequest(method: "GET" | "POST" | "PATCH", path: string, data?: any): Promise<any> {
+    const restBase = BACKEND_URL.endsWith("/ai") ? BACKEND_URL.slice(0, -3) : BACKEND_URL;
+    const activeCity = useBelsomeStore.getState().activeCity || "Hyderabad";
+    
+    const options: RequestInit = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-active-city": activeCity
+      },
+      signal: AbortSignal.timeout(10000)
+    };
+    
+    if (data && (method === "POST" || method === "PATCH")) {
+      options.body = JSON.stringify(data);
+    }
+    
+    const response = await fetch(`${restBase}/${path}`, options);
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  }
+
+  static async getStylists(): Promise<any[]> {
+    return this.restRequest("GET", "stylists");
+  }
+
+  static async getSalons(): Promise<any[]> {
+    return this.restRequest("GET", "salons");
+  }
+
+  static async getServices(): Promise<any[]> {
+    return this.restRequest("GET", "services");
+  }
+
+  static async getAppointments(params?: { customerName?: string; salonId?: string }): Promise<any[]> {
+    let query = "";
+    if (params) {
+      const searchParams = new URLSearchParams();
+      if (params.customerName) searchParams.append("customerName", params.customerName);
+      if (params.salonId) searchParams.append("salonId", params.salonId);
+      query = `?${searchParams.toString()}`;
+    }
+    return this.restRequest("GET", `appointments${query}`);
+  }
+
+  static async createAppointment(data: any): Promise<any> {
+    return this.restRequest("POST", "appointments", data);
+  }
+
+  static async updateAppointmentStatus(id: string, status: string): Promise<any> {
+    return this.restRequest("PATCH", `appointments/${id}`, { status });
+  }
+
+  static async getVendorProducts(): Promise<any[]> {
+    return this.restRequest("GET", "vendor-products");
+  }
+
+  static async createProduct(data: any): Promise<any> {
+    return this.restRequest("POST", "vendor-products", data);
+  }
+
+  static async getExamAttempts(): Promise<any[]> {
+    return this.restRequest("GET", "exam-attempts");
+  }
+
+  static async createAttempt(data: any): Promise<any> {
+    return this.restRequest("POST", "exam-attempts", data);
+  }
+
+  static async getWeddingProject(id: string): Promise<any> {
+    return this.restRequest("GET", `wedding-projects/${id}`);
+  }
+
+  static async getCorporateAccounts(): Promise<any[]> {
+    return this.restRequest("GET", "corporate-accounts");
+  }
+
+  static async getStylistSuccessRate(id: string, lookGoal: string): Promise<any> {
+    return this.restRequest("GET", `stylists/${id}/success-rate?lookGoal=${encodeURIComponent(lookGoal)}`);
+  }
+
+  static async getPriceReasoning(data: {
+    salonId: string;
+    serviceId: string;
+    date: string;
+    timeSlot: string;
+    originalPrice: number;
+    finalPrice: number;
+  }): Promise<{ reasoning: string[] }> {
+    return this.request("price-reasoning", data);
+  }
 }

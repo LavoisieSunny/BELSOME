@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from "../db/supabaseClient";
 import * as dotenv from "dotenv";
 import * as prompts from "../prompts";
 
@@ -934,6 +935,88 @@ export class AIService {
         b2bPitch: `AI Bridal Planner optimizes BELSOME salon inventory by cluster-assigning ${family} family guest slots alongside lead bride treatments, maximizing high-ticket booking margins by 42% on ${params.date}. Automated stylist load balancing reduces transition gaps to under 10 minutes.`
       };
     });
+  }
+
+  // 12. AI Price Reasoning
+  static async generatePriceReasoning(params: {
+    salonId: string;
+    serviceId: string;
+    date: string;
+    timeSlot: string;
+    originalPrice: number;
+    finalPrice: number;
+  }, activeCity: string = "Hyderabad"): Promise<any> {
+    // 1. Query salon surge/discount settings
+    let peakSurge = 15;
+    let offPeakDiscount = 20;
+    let salonName = "BELSOME Signature Studio";
+
+    try {
+      const { data: salon, error: salonError } = await supabase
+        .from("salons")
+        .select("name, peak_surge, off_peak_discount")
+        .eq("id", params.salonId)
+        .maybeSingle();
+
+      if (!salonError && salon) {
+        salonName = salon.name;
+        peakSurge = Number(salon.peak_surge) || 0;
+        offPeakDiscount = Number(salon.off_peak_discount) || 0;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch salon info for price reasoning:", err);
+    }
+
+    // 2. Query booking density count for that slot
+    let bookingCount = 0;
+    try {
+      const { data: appointments, error: apptsError } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("salon_id", params.salonId)
+        .eq("date", params.date)
+        .eq("time_slot", params.timeSlot);
+
+      if (!apptsError && appointments) {
+        bookingCount = appointments.length;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch booking density for price reasoning:", err);
+    }
+
+    const prompt = prompts.PRICING_REASONING_PROMPT
+      .replace("{salonName}", salonName)
+      .replace("{date}", params.date)
+      .replace("{timeSlot}", params.timeSlot)
+      .replace("{bookingCount}", String(bookingCount))
+      .replace("{originalPrice}", String(params.originalPrice))
+      .replace("{finalPrice}", String(params.finalPrice))
+      .replace("{peakSurge}", String(peakSurge))
+      .replace("{offPeakDiscount}", String(offPeakDiscount))
+      .replace(/Hyderabad/g, activeCity);
+
+    const fallbackMock = () => {
+      const isSurge = params.finalPrice > params.originalPrice;
+      const isDiscount = params.finalPrice < params.originalPrice;
+      
+      const reasons = [];
+      if (isSurge) {
+        reasons.push(`High demand slot: ${bookingCount} active bookings confirmed for ${params.timeSlot} on ${params.date}.`);
+        reasons.push(`Dynamic peak hour surge of +${peakSurge}% applied to balance stylist occupancy.`);
+        reasons.push(`Surcharge supports 20-min seating SLA guarantee.`);
+      } else if (isDiscount) {
+        reasons.push(`Smart scheduling discount: booking scheduled during off-peak morning hours.`);
+        reasons.push(`Happy hour price reduction of -${offPeakDiscount}% applied dynamically.`);
+        reasons.push(`Saving of ₹${params.originalPrice - params.finalPrice} automatically credited.`);
+      } else {
+        reasons.push(`Standard reservation baseline rate of ₹${params.originalPrice}.`);
+        reasons.push(`Moderate booking density (${bookingCount} clients) in this slot.`);
+        reasons.push(`No active peak surge or off-peak promotional rates apply.`);
+      }
+      return { reasoning: reasons };
+    };
+
+    return this.executeLLM(prompt, fallbackMock);
   }
 }
 

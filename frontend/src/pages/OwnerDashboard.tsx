@@ -8,6 +8,30 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import GlowHeatmap from "../components/GlowHeatmap";
+import AIReasoning from "../components/AIReasoning";
+
+const getPricingBullets = (reason: string) => {
+  const base = reason || "Standard Rate";
+  if (base.includes("Off-Peak")) {
+    return [
+      base,
+      "Applied Mon-Thu between 10:00 AM and 02:00 PM.",
+      "Incentivizes bookings during historically quiet intervals."
+    ];
+  }
+  if (base.includes("Surge") || base.includes("Demand")) {
+    return [
+      base,
+      "Applies during high-occupancy weekend or evening slots.",
+      "Stylist capacity thresholds exceeded, triggering surge multiplier."
+    ];
+  }
+  return [
+    base,
+    "Standard base styling rate applies.",
+    "Optimal pricing balance with no dynamic adjustments."
+  ];
+};
 
 export default function OwnerDashboard() {
   const { 
@@ -798,7 +822,7 @@ export default function OwnerDashboard() {
                         <td className="py-3 text-purple-700 font-semibold">{appt.stylistName}</td>
                         <td className="py-3 text-slate-500 font-semibold">{appt.date} • {appt.timeSlot}</td>
                         <td className="py-3 font-mono text-slate-900 font-bold">₹{appt.finalPrice}</td>
-                        <td className="py-3 text-right">
+                        <td className="py-3 text-right flex items-center justify-end gap-2">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${
                             appt.pricingReason.includes("Off-Peak") ? "bg-green-50 border border-green-150 text-green-700" :
                             appt.pricingReason.includes("Surge") ? "bg-amber-55/60 border border-amber-200 text-amber-700" :
@@ -806,6 +830,10 @@ export default function OwnerDashboard() {
                           }`}>
                             {appt.pricingReason.split(" (")[0]}
                           </span>
+                          <AIReasoning
+                            bullets={getPricingBullets(appt.pricingReason)}
+                            label="Why this price?"
+                          />
                         </td>
                       </tr>
                     ))}

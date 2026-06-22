@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { ApiService } from "../services/api";
 import { useBelsomeStore } from "../store/belsomeStore";
+import OutcomeMatch from "../components/OutcomeMatch";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -219,7 +220,7 @@ export default function LandingPage() {
           </div>
 
           {/* City Vitals */}
-          <div className="pt-4 grid grid-cols-3 gap-4 border-t border-slate-200 max-w-lg">
+          <div className="pt-4 grid grid-cols-3 gap-4 border-t border-slate-205 max-w-lg">
             <div className="text-xs">
               <span className="text-slate-400 block font-mono font-bold uppercase tracking-wider text-[9px]">LAUNCH REGIONS</span>
               <strong className="text-slate-800 text-[11px] font-bold">
@@ -300,158 +301,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 2. Startup Metrics Strip */}
-      <section className="bg-white/40 border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-x divide-slate-150">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">ACTIVE BOOKINGS</span>
-            <strong className="text-3xl font-extrabold text-slate-800 tracking-tight">1,240+</strong>
-            <p className="text-[10px] text-slate-500 font-semibold">Processed Today</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">MANAGED STARTUP VALUE</span>
-            <strong className="text-3xl font-extrabold text-purple-750 tracking-tight">₹4.2L</strong>
-            <p className="text-[10px] text-slate-500 font-semibold">Weekly Gross Volume</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">AVG CHAIR SEATING</span>
-            <strong className="text-3xl font-extrabold text-pink-700 tracking-tight">14.8m</strong>
-            <p className="text-[10px] text-slate-500 font-semibold">{activeCity} Industry Best</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">SLA ADHERENCE</span>
-            <strong className="text-3xl font-extrabold text-teal-700 tracking-tight">99.2%</strong>
-            <p className="text-[10px] text-slate-500 font-semibold">Refund Backing Guarantee</p>
-          </div>
-        </div>
-      </section>
-
-      {/* 2.5. Judge Walkthrough Guide */}
-      <section className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1 text-left">
-            <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-650 text-white text-xs font-bold shadow-md shadow-purple-600/20">⚡</span>
-              Try BELSOME in 60 Seconds
-            </h3>
-            <p className="text-xs text-slate-505 dark:text-slate-400 font-semibold leading-relaxed">
-              We've prepared a guided walk-through path specifically for judges to experience the key features of the platform.
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/50 border border-purple-100/50 text-purple-700 dark:text-purple-400 text-xs font-bold leading-none select-none">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600"></span>
-            </span>
-            Judge Demo Assistant Active
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Step 1 */}
-          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full translate-x-4 -translate-y-4" />
-            <div className="space-y-3 relative z-10 text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-purple-600 bg-purple-100 border border-purple-250/20 px-2 py-0.5 rounded-full">
-                  STEP 1
-                </span>
-                <span className="text-xs text-slate-400 font-bold">• 15 Seconds</span>
-              </div>
-              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                <MessageSquare className="w-4 h-4 text-purple-650" /> Consult AI Grooming Concierge
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Test the Gemini-powered AI engine. Choose a pre-filled demo query to load and consult the AI model directly below.
-              </p>
-            </div>
-            <div className="space-y-2 pt-2 relative z-10">
-              <button
-                type="button"
-                onClick={() => {
-                  handleChipClick("I have an oval face shape, need a professional low-maintenance executive short crop haircut for a board presentation.");
-                  document.getElementById("ai-concierge-console")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                disabled={loading}
-                className="w-full text-left px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-150 text-[10px] font-bold text-purple-750 transition-all active:scale-97 disabled:opacity-50 flex items-center justify-between"
-              >
-                <span>🏢 Run Executive Short Crop demo</span>
-                <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleChipClick("Suggest a wedding grooming package for a heart face with dense beard styling and de-tan face pack.");
-                  document.getElementById("ai-concierge-console")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                disabled={loading}
-                className="w-full text-left px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-150 text-[10px] font-bold text-purple-750 transition-all active:scale-97 disabled:opacity-50 flex items-center justify-between"
-              >
-                <span>🤵 Run Wedding Package demo</span>
-                <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-pink-500/5 rounded-full translate-x-4 -translate-y-4" />
-            <div className="space-y-3 relative z-10 text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-pink-650 bg-pink-100 border border-pink-250/20 px-2 py-0.5 rounded-full">
-                  STEP 2
-                </span>
-                <span className="text-xs text-slate-400 font-bold">• 25 Seconds</span>
-              </div>
-              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-pink-600" /> Book in Customer Dashboard
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Explore the Customer App. Try the <strong>Selfie Face Scan</strong> (with full Gemini vision support), take the <strong>Style DNA Quiz</strong>, and book a salon seat.
-              </p>
-            </div>
-            <div className="pt-2 relative z-10">
-              <button
-                type="button"
-                onClick={() => navigate("/customer")}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-650 hover:opacity-95 text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-pink-600/10 active:scale-97 transition-all flex items-center justify-center gap-1.5"
-              >
-                Launch Customer App <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-teal-500/5 rounded-full translate-x-4 -translate-y-4" />
-            <div className="space-y-3 relative z-10 text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-teal-650 bg-teal-100 border border-teal-250/20 px-2 py-0.5 rounded-full">
-                  STEP 3
-                </span>
-                <span className="text-xs text-slate-400 font-bold">• 20 Seconds</span>
-              </div>
-              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-teal-600" /> Audit Salon Operations
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Observe the business side. Review daily salon revenues, set dynamic price surges, accept AI-procured stocks, and audit candidate exam results.
-              </p>
-            </div>
-            <div className="pt-2 relative z-10">
-              <button
-                type="button"
-                onClick={() => navigate("/owner")}
-                className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-750 text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-teal-650/10 active:scale-97 transition-all flex items-center justify-center gap-1.5"
-              >
-                Open Owner Dashboard <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* 2. Outcome Match Hero Section */}
+      <OutcomeMatch />
 
       {/* 3. AI Grooming Concierge Chat Console */}
+      <div className="text-center space-y-2 pt-4">
+        <h3 className="font-display font-extrabold text-2xl text-slate-900 dark:text-white">
+          Or just ask our AI Concierge
+        </h3>
+        <p className="text-xs text-slate-505 dark:text-slate-400 font-semibold">
+          Prefer custom descriptions? Type or talk directly to our intelligent styling agent below.
+        </p>
+      </div>
+
       <section id="ai-concierge-console" className="glass-panel rounded-3xl overflow-hidden shadow-xl border border-slate-200/60 relative">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary via-purple-600 to-brand-secondary" />
         
@@ -619,7 +481,158 @@ export default function LandingPage() {
         </form>
       </section>
 
-      {/* 4. Complete 6 Pillars Role Architecture */}
+      {/* 4. Startup Metrics Strip */}
+      <section className="bg-white/40 border border-slate-205 rounded-2xl p-6 shadow-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-x divide-slate-150">
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">ACTIVE BOOKINGS</span>
+            <strong className="text-3xl font-extrabold text-slate-800 tracking-tight">1,240+</strong>
+            <p className="text-[10px] text-slate-500 font-semibold">Processed Today</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">MANAGED STARTUP VALUE</span>
+            <strong className="text-3xl font-extrabold text-purple-755 tracking-tight">₹4.2L</strong>
+            <p className="text-[10px] text-slate-500 font-semibold">Weekly Gross Volume</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">AVG CHAIR SEATING</span>
+            <strong className="text-3xl font-extrabold text-pink-700 tracking-tight">14.8m</strong>
+            <p className="text-[10px] text-slate-505 font-semibold">{activeCity} Industry Best</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-mono font-bold block uppercase tracking-wider">SLA ADHERENCE</span>
+            <strong className="text-3xl font-extrabold text-teal-700 tracking-tight">99.2%</strong>
+            <p className="text-[10px] text-slate-500 font-semibold">Refund Backing Guarantee</p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Judge Walkthrough Guide */}
+      <section className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1 text-left">
+            <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-650 text-white text-xs font-bold shadow-md shadow-purple-600/20">⚡</span>
+              Try BELSOME in 60 Seconds
+            </h3>
+            <p className="text-xs text-slate-505 dark:text-slate-400 font-semibold leading-relaxed">
+              We've prepared a guided walk-through path specifically for judges to experience the key features of the platform.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50/50 border border-purple-100/50 text-purple-700 dark:text-purple-400 text-xs font-bold leading-none select-none">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600"></span>
+            </span>
+            Judge Demo Assistant Active
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Step 1 */}
+          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full translate-x-4 -translate-y-4" />
+            <div className="space-y-3 relative z-10 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-purple-600 bg-purple-100 border border-purple-250/20 px-2 py-0.5 rounded-full">
+                  STEP 1
+                </span>
+                <span className="text-xs text-slate-400 font-bold">• 15 Seconds</span>
+              </div>
+              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-purple-650" /> Consult AI Grooming Concierge
+              </h4>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Test the Gemini-powered AI engine. Choose a pre-filled demo query to load and consult the AI model directly below.
+              </p>
+            </div>
+            <div className="space-y-2 pt-2 relative z-10">
+              <button
+                type="button"
+                onClick={() => {
+                  handleChipClick("I have an oval face shape, need a professional low-maintenance executive short crop haircut for a board presentation.");
+                  document.getElementById("ai-concierge-console")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                disabled={loading}
+                className="w-full text-left px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-150 text-[10px] font-bold text-purple-750 transition-all active:scale-97 disabled:opacity-50 flex items-center justify-between"
+              >
+                <span>🏢 Run Executive Short Crop demo</span>
+                <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleChipClick("Suggest a wedding grooming package for a heart face with dense beard styling and de-tan face pack.");
+                  document.getElementById("ai-concierge-console")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                disabled={loading}
+                className="w-full text-left px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-150 text-[10px] font-bold text-purple-750 transition-all active:scale-97 disabled:opacity-50 flex items-center justify-between"
+              >
+                <span>🤵 Run Wedding Package demo</span>
+                <ArrowRight className="w-3.5 h-3.5 text-purple-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-pink-500/5 rounded-full translate-x-4 -translate-y-4" />
+            <div className="space-y-3 relative z-10 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-pink-650 bg-pink-100 border border-pink-250/20 px-2 py-0.5 rounded-full">
+                  STEP 2
+                </span>
+                <span className="text-xs text-slate-400 font-bold">• 25 Seconds</span>
+              </div>
+              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-pink-600" /> Book in Customer Dashboard
+              </h4>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Explore the Customer App. Try the <strong>Selfie Face Scan</strong> (with full Gemini vision support), take the <strong>Style DNA Quiz</strong>, and book a salon seat.
+              </p>
+            </div>
+            <div className="pt-2 relative z-10">
+              <button
+                type="button"
+                onClick={() => navigate("/customer")}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-650 hover:opacity-95 text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-pink-600/10 active:scale-97 transition-all flex items-center justify-center gap-1.5"
+              >
+                Launch Customer App <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="glass-panel bg-white/40 border border-slate-200/80 p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-teal-500/5 rounded-full translate-x-4 -translate-y-4" />
+            <div className="space-y-3 relative z-10 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-teal-650 bg-teal-100 border border-teal-250/20 px-2 py-0.5 rounded-full">
+                  STEP 3
+                </span>
+                <span className="text-xs text-slate-400 font-bold">• 20 Seconds</span>
+              </div>
+              <h4 className="font-sans font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-teal-600" /> Audit Salon Operations
+              </h4>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Observe the business side. Review daily salon revenues, set dynamic price surges, accept AI-procured stocks, and audit candidate exam results.
+              </p>
+            </div>
+            <div className="pt-2 relative z-10">
+              <button
+                type="button"
+                onClick={() => navigate("/owner")}
+                className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-750 text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-teal-650/10 active:scale-97 transition-all flex items-center justify-center gap-1.5"
+              >
+                Open Owner Dashboard <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Platform Modules Roles Grid */}
       <section className="space-y-8">
         <div className="text-center max-w-xl mx-auto space-y-2">
           <h3 className="font-display font-extrabold text-2xl sm:text-3xl text-slate-900">
